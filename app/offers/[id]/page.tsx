@@ -11,11 +11,13 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { supabase } from "@/lib/supabase";
 import { CONTACT_LINKS, CATEGORIES } from "@/lib/constants";
 import { MessageCircle, Phone } from "lucide-react";
+import { useLanguage } from "@/lib/language";
 
 export default function OfferDetailPage() {
   const params = useParams();
   const [account, setAccount] = useState<any>(null);
   const [loading, setLoading] = useState(true);
+  const { t } = useLanguage();
 
   useEffect(() => {
     if (params.id) {
@@ -59,7 +61,7 @@ export default function OfferDetailPage() {
           <div className="text-center">
             <h1 className="text-2xl font-bold mb-4">Account Not Found</h1>
             <Link href="/">
-              <Button>Back to Home</Button>
+              <Button>{t("offer.back")}</Button>
             </Link>
           </div>
         </div>
@@ -93,7 +95,7 @@ export default function OfferDetailPage() {
                   <Badge variant="secondary">{account.collector_level}</Badge>
                 )}
                 {account.is_sold && (
-                  <Badge variant="destructive">Sold Out</Badge>
+                  <Badge variant="destructive">{t("offer.sold")}</Badge>
                 )}
               </div>
 
@@ -122,7 +124,7 @@ export default function OfferDetailPage() {
 
             <Card>
               <CardHeader>
-                <CardTitle>Description</CardTitle>
+                <CardTitle>{t("offer.description")}</CardTitle>
               </CardHeader>
               <CardContent>
                 <p className="text-muted-foreground leading-relaxed">
@@ -134,19 +136,17 @@ export default function OfferDetailPage() {
             {/* Contact Buttons */}
             <Card>
               <CardHeader>
-                <CardTitle>Contact Seller</CardTitle>
+                <CardTitle>{t("contact.seller")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button asChild className="w-full" size="lg">
-                  <a href={CONTACT_LINKS.telegram} target="_blank" rel="noopener noreferrer">
-
-                  {/* <a
-                    href="tg://resolve?domain=KIM_2Thousand7"
+                  <a
+                    href={CONTACT_LINKS.telegram}
                     target="_blank"
                     rel="noopener noreferrer"
-                  > */}
+                  >
                     <MessageCircle className="mr-2 h-5 w-5" />
-                    Contact via Telegram
+                    {t("contact.telegram")}
                   </a>
                 </Button>
                 <Button asChild variant="outline" className="w-full" size="lg">
@@ -156,7 +156,7 @@ export default function OfferDetailPage() {
                     rel="noopener noreferrer"
                   >
                     <Phone className="mr-2 h-5 w-5" />
-                    Contact via Viber
+                    {t("contact.viber")}
                   </a>
                 </Button>
               </CardContent>

@@ -54,7 +54,7 @@ export function AccountCard({
           </div>
           <CardContent className="p-4">
             <h3 className="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem]">
-              {title}
+              Code - {title}
             </h3>
 
             {collectorLevel && (
@@ -68,18 +68,24 @@ export function AccountCard({
                 {discount ? (
                   <>
                     <span className="text-lg font-bold text-primary">
-                      ${finalPrice.toFixed(2)}
+                      {Math.floor(finalPrice).toLocaleString()} MMK
                     </span>
                     <span className="text-sm text-muted-foreground line-through">
-                      ${price.toFixed(2)}
+                      {Math.floor(price).toLocaleString()} MMK
                     </span>
                   </>
                 ) : (
                   <span className="text-lg font-bold text-primary">
-                    ${price.toFixed(2)}
+                    {Math.floor(price).toLocaleString()} MMK
                   </span>
                 )}
               </div>
+              <Link
+                href={`/offers/${id}`}
+                className="ml-4 px-3 py-1 rounded bg-primary text-white text-xs font-medium hover:bg-primary/80 transition"
+              >
+                View
+              </Link>
             </div>
           </CardContent>
         </Link>

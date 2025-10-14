@@ -1,28 +1,49 @@
-'use client'
+"use client";
 
-import { useState } from 'react'
-import Link from 'next/link'
-import { useTheme } from 'next-themes'
-import { Search, Menu, X, Sun, Moon, Globe, Gamepad2 } from 'lucide-react'
-import { Button } from '@/components/ui/button'
-import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet'
+import { useEffect, useState } from "react";
+import Link from "next/link";
+import { useTheme } from "next-themes";
+import { Search, Menu, X, Sun, Moon, Globe, Gamepad2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
+} from "@/components/ui/select";
+import Logo2 from "../image/Logo2.png";
+import Image from "next/image";
 
 export function Navbar() {
-  const [isOpen, setIsOpen] = useState(false)
-  const { theme, setTheme } = useTheme()
-  const [language, setLanguage] = useState('en')
+  const [isOpen, setIsOpen] = useState(false);
+  const { theme, setTheme } = useTheme();
+  const [language, setLanguage] = useState(() => {
+    try {
+      return (
+        (typeof window !== "undefined" && localStorage.getItem("language")) ||
+        "en"
+      );
+    } catch {
+      return "en";
+    }
+  });
+
+  useEffect(() => {
+    try {
+      if (typeof window !== "undefined") {
+        localStorage.setItem("language", language);
+      }
+      document.documentElement.lang = language;
+    } catch (e) {
+      // ignore
+    }
+  }, [language]);
 
   const navLinks = [
-    { href: '/mobile-legend', label: 'Mobile Legend' },
-    { href: '/pubg', label: 'PUBG' },
-  ]
+    { href: "tg://resolve?domain=kim_mlbb_diamond_shop", label: "Support" },
+  ];
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -30,9 +51,16 @@ export function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center space-x-2">
-            <Gamepad2 className="h-8 w-8 text-primary" />
+            <Image
+              src={Logo2}
+              alt="Logo"
+              width={40}
+              height={40}
+              className="h-8 w-8 object-contain"
+              priority
+            />
             <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-              GameHub
+              MR.KIM
             </span>
           </Link>
 
@@ -61,7 +89,10 @@ export function Navbar() {
               {/* Language Selector */}
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger className="w-20">
-                  <Globe className="h-4 w-4" />
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    <SelectValue />
+                  </div>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="en">EN</SelectItem>
@@ -73,7 +104,7 @@ export function Navbar() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                onClick={() => setTheme(theme === "light" ? "dark" : "light")}
               >
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -110,7 +141,10 @@ export function Navbar() {
                         <span className="text-sm font-medium">Language</span>
                         <Select value={language} onValueChange={setLanguage}>
                           <SelectTrigger className="w-20">
-                            <Globe className="h-4 w-4" />
+                            <div className="flex items-center gap-2">
+                              <Globe className="h-4 w-4" />
+                              <SelectValue />
+                            </div>
                           </SelectTrigger>
                           <SelectContent>
                             <SelectItem value="en">EN</SelectItem>
@@ -124,7 +158,9 @@ export function Navbar() {
                         <Button
                           variant="ghost"
                           size="icon"
-                          onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')}
+                          onClick={() =>
+                            setTheme(theme === "light" ? "dark" : "light")
+                          }
                         >
                           <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                           <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
@@ -139,5 +175,5 @@ export function Navbar() {
         </div>
       </div>
     </nav>
-  )
+  );
 }
