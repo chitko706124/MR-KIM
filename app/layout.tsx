@@ -4,7 +4,7 @@ import { Inter } from "next/font/google";
 import { Providers } from "@/lib/providers";
 
 export const metadata: Metadata = {
-  title: "GameHub - Premium Game Accounts",
+  title: "MR.KIM - Premium Game Accounts",
   description:
     "Buy premium Mobile Legend and PUBG accounts with instant delivery",
 };

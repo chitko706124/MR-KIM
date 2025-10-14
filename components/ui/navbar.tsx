@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/select";
 import Logo2 from "../image/Logo2.png";
 import Image from "next/image";
+import { supabase } from "@/lib/supabase";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -44,6 +45,36 @@ export function Navbar() {
   const navLinks = [
     { href: "tg://resolve?domain=kim_mlbb_diamond_shop", label: "Support" },
   ];
+
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        const session = (data as any)?.session;
+        const email = session?.user?.email;
+        if (!email) {
+          setIsAdmin(false);
+          return;
+        }
+
+        const { data: adminData, error } = await supabase
+          .from("admin_users")
+          .select("id")
+          .eq("email", email)
+          .single();
+
+        if (!error && adminData) setIsAdmin(true);
+        else setIsAdmin(false);
+      } catch (err) {
+        console.error("admin check error", err);
+        setIsAdmin(false);
+      }
+    };
+
+    checkAdmin();
+  }, []);
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -75,6 +106,28 @@ export function Navbar() {
                 {link.label}
               </Link>
             ))}
+            {isAdmin && (
+              <>
+                <Link
+                  href="/admin/accounts"
+                  className="text-sm font-medium transition-colors hover:text-primary"
+                >
+                  Manage Accounts
+                </Link>
+                <Link
+                  href="/admin/ads"
+                  className="text-sm font-medium transition-colors hover:text-primary"
+                >
+                  Manage Ads
+                </Link>
+                <Link
+                  href="/admin/profile"
+                  className="text-sm font-medium transition-colors hover:text-primary"
+                >
+                  Profile
+                </Link>
+              </>
+            )}
           </div>
 
           {/* Right Side Controls */}
@@ -109,6 +162,16 @@ export function Navbar() {
                 <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               </Button>
+
+              {/* Admin Login button */}
+              {!isAdmin && (
+                <Link href="/admin/login">
+                  <Button variant="outline" size="sm" className="ml-2">
+                    {" "}
+                    Admin Login
+                  </Button>
+                </Link>
+              )}
             </div>
 
             {/* Mobile Menu */}
@@ -133,6 +196,15 @@ export function Navbar() {
                           {link.label}
                         </Link>
                       ))}
+                      {isAdmin && (
+                        <Link
+                          href="/admin"
+                          className="block text-lg font-medium transition-colors hover:text-primary"
+                          onClick={() => setIsOpen(false)}
+                        >
+                          Admin Panel
+                        </Link>
+                      )}
                     </div>
 
                     {/* Mobile Controls */}
@@ -167,6 +239,14 @@ export function Navbar() {
                         </Button>
                       </div>
                     </div>
+                    {/* Admin Login button */}
+                    {!isAdmin && (
+                      <Link href="/admin/login">
+                        <Button variant="outline" size="sm">
+                          Admin Login
+                        </Button>
+                      </Link>
+                    )}
                   </div>
                 </SheetContent>
               </Sheet>
