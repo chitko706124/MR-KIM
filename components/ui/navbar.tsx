@@ -197,13 +197,29 @@ export function Navbar() {
                         </Link>
                       ))}
                       {isAdmin && (
-                        <Link
-                          href="/admin"
-                          className="block text-lg font-medium transition-colors hover:text-primary"
-                          onClick={() => setIsOpen(false)}
-                        >
-                          Admin Panel
-                        </Link>
+                        <>
+                          <Link
+                            href="/admin/accounts"
+                            className="block text-lg font-medium transition-colors hover:text-primary"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Manage Accounts
+                          </Link>
+                          <Link
+                            href="/admin/ads"
+                            className="block text-lg font-medium transition-colors hover:text-primary"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Manage Ads
+                          </Link>
+                          <Link
+                            href="/admin/profile"
+                            className="block text-lg font-medium transition-colors hover:text-primary"
+                            onClick={() => setIsOpen(false)}
+                          >
+                            Profile
+                          </Link>
+                        </>
                       )}
                     </div>
 
