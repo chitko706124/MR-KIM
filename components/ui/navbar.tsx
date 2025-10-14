@@ -59,13 +59,14 @@ export function Navbar() {
           return;
         }
 
-        const { data: adminData, error } = await supabase
-          .from("admin_users")
-          .select("id")
+        // Supabase default users table is "users" in auth schema
+        const { data: userData, error } = await supabase
+          .from("users")
+          .select("id, email")
           .eq("email", email)
           .single();
 
-        if (!error && adminData) setIsAdmin(true);
+        if (!error) setIsAdmin(true);
         else setIsAdmin(false);
       } catch (err) {
         console.error("admin check error", err);
@@ -196,7 +197,7 @@ export function Navbar() {
                           {link.label}
                         </Link>
                       ))}
-                      {isAdmin && (
+                      {!isAdmin && (
                         <>
                           <Link
                             href="/admin/accounts"
