@@ -1,20 +1,20 @@
-'use client'
+"use client";
 
-import Image from 'next/image'
-import Link from 'next/link'
-import { Badge } from '@/components/ui/badge'
-import { Card, CardContent } from '@/components/ui/card'
-import { motion } from 'framer-motion'
+import Image from "next/image";
+import Link from "next/link";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent } from "@/components/ui/card";
+import { motion } from "framer-motion";
 
 interface AccountCardProps {
-  id: string
-  title: string
-  price: number
-  discount?: number
-  images: string[]
-  category: string
-  collectorLevel?: string
-  isSold: boolean
+  id: string;
+  title: string;
+  price: number;
+  discount?: number;
+  images: string[];
+  category: string;
+  collectorLevel?: string;
+  isSold: boolean;
 }
 
 export function AccountCard({
@@ -27,14 +27,11 @@ export function AccountCard({
   collectorLevel,
   isSold,
 }: AccountCardProps) {
-  const finalPrice = discount ? price - (price * discount / 100) : price
-  const thumbnailImage = images[0] || '/placeholder-game.jpg'
+  const finalPrice = discount ? price - (price * discount) / 100 : price;
+  const thumbnailImage = images[0] || "/placeholder-game.jpg";
 
   return (
-    <motion.div
-      whileHover={{ y: -4 }}
-      transition={{ duration: 0.2 }}
-    >
+    <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
       <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20">
         <Link href={`/offers/${id}`}>
           <div className="relative aspect-video">
@@ -59,7 +56,7 @@ export function AccountCard({
             <h3 className="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem]">
               {title}
             </h3>
-            
+
             {collectorLevel && (
               <Badge variant="outline" className="mb-2 text-xs">
                 {collectorLevel}
@@ -88,5 +85,5 @@ export function AccountCard({
         </Link>
       </Card>
     </motion.div>
-  )
+  );
 }

@@ -1,117 +1,204 @@
-'use client'
+"use client";
 
-import { useEffect, useState } from 'react'
-import { Navbar } from '@/components/ui/navbar'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+import { Navbar } from "@/components/ui/navbar";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from '@/components/ui/select'
-import { Badge } from '@/components/ui/badge'
-import { supabase } from '@/lib/supabase'
-import { COLLECTOR_LEVELS, CATEGORIES } from '@/lib/constants'
-import { Plus, CreditCard as Edit, Trash2, Upload, Save } from 'lucide-react'
-import { toast } from 'sonner'
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { supabase } from "@/lib/supabase";
+import { COLLECTOR_LEVELS, CATEGORIES } from "@/lib/constants";
+import { Plus, CreditCard as Edit, Trash2, Upload, Save } from "lucide-react";
+import { toast } from "sonner";
 
 export default function AdminPage() {
-  const [accounts, setAccounts] = useState<any[]>([])
-  const [ads, setAds] = useState<any[]>([])
-  const [loading, setLoading] = useState(false)
-  
+  const router = useRouter();
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [ads, setAds] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
+
   // Form states
   const [accountForm, setAccountForm] = useState({
-    id: '',
-    title: '',
-    description: '',
-    price: '',
-    discount: '',
-    category: '',
-    collector_level: '',
+    id: "",
+    title: "",
+    description: "",
+    price: "",
+    discount: "",
+    category: "",
+    collector_level: "",
     images: [] as string[],
-  })
-  
-  const [adForm, setAdForm] = useState({
-    id: '',
-    title: '',
-    image_url: '',
-    link: '',
-    order_index: '',
-  })
+  });
 
-  const [isEditing, setIsEditing] = useState(false)
-  const [editingType, setEditingType] = useState<'account' | 'ad' | null>(null)
+  const [adForm, setAdForm] = useState({
+    id: "",
+    title: "",
+    image_url: "",
+    link: "",
+    order_index: "",
+  });
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [editingType, setEditingType] = useState<"account" | "ad" | null>(null);
 
   useEffect(() => {
-    fetchData()
-  }, [])
+    // Check auth session first; if no session, redirect to login
+    const checkSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        console.debug("getSession result", data);
+        const session = (data as any)?.session;
+        if (!session) {
+          router.replace("/admin/login");
+          return;
+        }
+        // If session exists, fetch admin data
+        fetchData();
+      } catch (err) {
+        console.error("Auth check error", err);
+        router.replace("/admin/login");
+      }
+    };
+
+    checkSession();
+  }, [router]);
 
   const fetchData = async () => {
     try {
       const [accountsResult, adsResult] = await Promise.all([
-        supabase.from('accounts').select('*').order('created_at', { ascending: false }),
-        supabase.from('ads').select('*').order('order_index')
-      ])
+        supabase
+          .from("accounts")
+          .select("*")
+          .order("created_at", { ascending: false }),
+        supabase.from("ads").select("*").order("order_index"),
+      ]);
 
-      setAccounts(accountsResult.data || [])
-      setAds(adsResult.data || [])
+      setAccounts(accountsResult.data || []);
+      setAds(adsResult.data || []);
     } catch (error) {
-      console.error('Error fetching data:', error)
+      console.error("Error fetching data:", error);
     }
-  }
+  };
 
   const handleAccountSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
       const accountData = {
         title: accountForm.title,
         description: accountForm.description,
         price: parseFloat(accountForm.price),
-        discount: accountForm.discount ? parseFloat(accountForm.discount) : null,
+        discount: accountForm.discount
+          ? parseFloat(accountForm.discount)
+          : null,
         category: accountForm.category,
         collector_level: accountForm.collector_level || null,
         images: accountForm.images,
-      }
+      };
 
       if (isEditing && accountForm.id) {
         const { error } = await supabase
-          .from('accounts')
+          .from("accounts")
           .update(accountData)
-          .eq('id', accountForm.id)
-        
-        if (error) throw error
-        toast.success('Account updated successfully')
+          .eq("id", accountForm.id);
+
+        if (error) {
+          // If blocked by RLS, try server-side API
+          if (
+            (error as any)?.message?.includes("row-level security") ||
+            (error as any)?.message?.toLowerCase().includes("row-level")
+          ) {
+            try {
+              const res = await fetch("/api/admin/accounts", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-admin-secret":
+                    process.env.NEXT_PUBLIC_ADMIN_API_SECRET || "",
+                },
+                body: JSON.stringify({
+                  account: { ...accountData, id: accountForm.id },
+                }),
+              });
+
+              if (!res.ok) {
+                const json = await res.json();
+                throw new Error(json.error || "Server insert failed");
+              }
+
+              toast.success("Account updated successfully (via server)");
+            } catch (serverErr: any) {
+              console.error("Server fallback error", serverErr);
+              throw serverErr;
+            }
+          } else {
+            throw error;
+          }
+        } else {
+          toast.success("Account updated successfully");
+        }
       } else {
-        const { error } = await supabase
-          .from('accounts')
-          .insert(accountData)
-        
-        if (error) throw error
-        toast.success('Account created successfully')
+        const { error } = await supabase.from("accounts").insert(accountData);
+
+        if (error) {
+          if (
+            (error as any)?.message?.includes("row-level security") ||
+            (error as any)?.message?.toLowerCase().includes("row-level")
+          ) {
+            // Try server-side API insert
+            try {
+              const res = await fetch("/api/admin/accounts", {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-admin-secret":
+                    process.env.NEXT_PUBLIC_ADMIN_API_SECRET || "",
+                },
+                body: JSON.stringify({ account: accountData }),
+              });
+
+              if (!res.ok) {
+                const json = await res.json();
+                throw new Error(json.error || "Server insert failed");
+              }
+
+              toast.success("Account created successfully (via server)");
+            } catch (serverErr: any) {
+              console.error("Server fallback error", serverErr);
+              throw serverErr;
+            }
+          } else {
+            throw error;
+          }
+        } else {
+          toast.success("Account created successfully");
+        }
       }
 
-      resetAccountForm()
-      fetchData()
+      resetAccountForm();
+      fetchData();
     } catch (error) {
-      console.error('Error saving account:', error)
-      toast.error('Error saving account')
+      console.error("Error saving account:", error);
+      toast.error("Error saving account");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleAdSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
 
     try {
       const adData = {
@@ -120,69 +207,64 @@ export default function AdminPage() {
         link: adForm.link || null,
         order_index: parseInt(adForm.order_index),
         is_active: true,
-      }
+      };
 
       if (isEditing && adForm.id) {
         const { error } = await supabase
-          .from('ads')
+          .from("ads")
           .update(adData)
-          .eq('id', adForm.id)
-        
-        if (error) throw error
-        toast.success('Ad updated successfully')
+          .eq("id", adForm.id);
+
+        if (error) throw error;
+        toast.success("Ad updated successfully");
       } else {
-        const { error } = await supabase
-          .from('ads')
-          .insert(adData)
-        
-        if (error) throw error
-        toast.success('Ad created successfully')
+        const { error } = await supabase.from("ads").insert(adData);
+
+        if (error) throw error;
+        toast.success("Ad created successfully");
       }
 
-      resetAdForm()
-      fetchData()
+      resetAdForm();
+      fetchData();
     } catch (error) {
-      console.error('Error saving ad:', error)
-      toast.error('Error saving ad')
+      console.error("Error saving ad:", error);
+      toast.error("Error saving ad");
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   const handleDeleteAccount = async (id: string) => {
     try {
       const { error } = await supabase
-        .from('accounts')
-        .update({ 
+        .from("accounts")
+        .update({
           is_sold: true,
-          sold_at: new Date().toISOString()
+          sold_at: new Date().toISOString(),
         })
-        .eq('id', id)
-      
-      if (error) throw error
-      toast.success('Account marked as sold')
-      fetchData()
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Account marked as sold");
+      fetchData();
     } catch (error) {
-      console.error('Error deleting account:', error)
-      toast.error('Error marking account as sold')
+      console.error("Error deleting account:", error);
+      toast.error("Error marking account as sold");
     }
-  }
+  };
 
   const handleDeleteAd = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from('ads')
-        .delete()
-        .eq('id', id)
-      
-      if (error) throw error
-      toast.success('Ad deleted successfully')
-      fetchData()
+      const { error } = await supabase.from("ads").delete().eq("id", id);
+
+      if (error) throw error;
+      toast.success("Ad deleted successfully");
+      fetchData();
     } catch (error) {
-      console.error('Error deleting ad:', error)
-      toast.error('Error deleting ad')
+      console.error("Error deleting ad:", error);
+      toast.error("Error deleting ad");
     }
-  }
+  };
 
   const editAccount = (account: any) => {
     setAccountForm({
@@ -190,72 +272,128 @@ export default function AdminPage() {
       title: account.title,
       description: account.description,
       price: account.price.toString(),
-      discount: account.discount?.toString() || '',
+      discount: account.discount?.toString() || "",
       category: account.category,
-      collector_level: account.collector_level || '',
+      collector_level: account.collector_level || "",
       images: account.images,
-    })
-    setIsEditing(true)
-    setEditingType('account')
-  }
+    });
+    setIsEditing(true);
+    setEditingType("account");
+  };
 
   const editAd = (ad: any) => {
     setAdForm({
       id: ad.id,
-      title: ad.title || '',
+      title: ad.title || "",
       image_url: ad.image_url,
-      link: ad.link || '',
+      link: ad.link || "",
       order_index: ad.order_index.toString(),
-    })
-    setIsEditing(true)
-    setEditingType('ad')
-  }
+    });
+    setIsEditing(true);
+    setEditingType("ad");
+  };
 
   const resetAccountForm = () => {
     setAccountForm({
-      id: '',
-      title: '',
-      description: '',
-      price: '',
-      discount: '',
-      category: '',
-      collector_level: '',
+      id: "",
+      title: "",
+      description: "",
+      price: "",
+      discount: "",
+      category: "",
+      collector_level: "",
       images: [],
-    })
-    setIsEditing(false)
-    setEditingType(null)
-  }
+    });
+    setIsEditing(false);
+    setEditingType(null);
+  };
 
   const resetAdForm = () => {
     setAdForm({
-      id: '',
-      title: '',
-      image_url: '',
-      link: '',
-      order_index: '',
-    })
-    setIsEditing(false)
-    setEditingType(null)
-  }
+      id: "",
+      title: "",
+      image_url: "",
+      link: "",
+      order_index: "",
+    });
+    setIsEditing(false);
+    setEditingType(null);
+  };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>, index?: number) => {
-    const file = e.target.files?.[0]
-    if (file) {
-      // In a real app, you would upload to Supabase Storage
-      const mockUrl = `https://picsum.photos/800/600?random=${Date.now()}`
-      
-      if (typeof index === 'number') {
-        const newImages = [...accountForm.images]
-        newImages[index] = mockUrl
-        setAccountForm(prev => ({ ...prev, images: newImages }))
-      } else {
-        setAccountForm(prev => ({ 
-          ...prev, 
-          images: [...prev.images, mockUrl]
-        }))
+  const handleImageUpload = (
+    e: React.ChangeEvent<HTMLInputElement>,
+    index?: number
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    // ensure bucket name exists in your Supabase project: 'accounts-images'
+    const uploadFile = async (file: File) => {
+      try {
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${fileExt}`;
+        const filePath = `${fileName}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("accounts-images")
+          .upload(filePath, file, { cacheControl: "3600", upsert: false });
+
+        if (uploadError) {
+          console.error("Upload error", uploadError);
+          // Detect missing bucket error
+          if (
+            (uploadError as any)?.message?.includes("Bucket not found") ||
+            (uploadError as any)?.status === 404
+          ) {
+            toast.error(
+              "Storage bucket 'accounts-images' not found. Create it in Supabase Storage (public or use signed URLs)."
+            );
+            return null;
+          }
+
+          toast.error("Image upload failed");
+          return null;
+        }
+
+        const { data: urlData } = supabase.storage
+          .from("accounts-images")
+          .getPublicUrl(filePath);
+
+        return urlData.publicUrl;
+      } catch (err) {
+        console.error("Storage upload error", err);
+        toast.error("Image upload failed");
+        return null;
       }
-    }
-  }
+    };
+
+    (async () => {
+      const uploadedUrls: string[] = [];
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        const url = await uploadFile(file);
+        if (url) uploadedUrls.push(url);
+      }
+
+      if (uploadedUrls.length === 0) return;
+
+      if (typeof index === "number") {
+        const newImages = [...accountForm.images];
+        newImages[index] = uploadedUrls[0];
+        setAccountForm((prev) => ({ ...prev, images: newImages }));
+      } else {
+        setAccountForm((prev) => ({
+          ...prev,
+          images: [...prev.images, ...uploadedUrls],
+        }));
+      }
+    })();
+
+    // reset the input value so same file can be re-uploaded later
+    e.currentTarget.value = "";
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -278,7 +416,9 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {isEditing && editingType === 'account' ? 'Edit Account' : 'Create New Account'}
+                  {isEditing && editingType === "account"
+                    ? "Edit Account"
+                    : "Create New Account"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -289,22 +429,34 @@ export default function AdminPage() {
                       <Input
                         id="title"
                         value={accountForm.title}
-                        onChange={(e) => setAccountForm(prev => ({ ...prev, title: e.target.value }))}
+                        onChange={(e) =>
+                          setAccountForm((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="category">Category</Label>
-                      <Select 
-                        value={accountForm.category} 
-                        onValueChange={(value) => setAccountForm(prev => ({ ...prev, category: value }))}
+                      <Select
+                        value={accountForm.category}
+                        onValueChange={(value) =>
+                          setAccountForm((prev) => ({
+                            ...prev,
+                            category: value,
+                          }))
+                        }
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select category" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="mobile_legend">Mobile Legend</SelectItem>
+                          <SelectItem value="mobile_legend">
+                            Mobile Legend
+                          </SelectItem>
                           <SelectItem value="pubg">PUBG</SelectItem>
                         </SelectContent>
                       </Select>
@@ -316,7 +468,12 @@ export default function AdminPage() {
                     <Textarea
                       id="description"
                       value={accountForm.description}
-                      onChange={(e) => setAccountForm(prev => ({ ...prev, description: e.target.value }))}
+                      onChange={(e) =>
+                        setAccountForm((prev) => ({
+                          ...prev,
+                          description: e.target.value,
+                        }))
+                      }
                       required
                     />
                   </div>
@@ -329,11 +486,16 @@ export default function AdminPage() {
                         type="number"
                         step="0.01"
                         value={accountForm.price}
-                        onChange={(e) => setAccountForm(prev => ({ ...prev, price: e.target.value }))}
+                        onChange={(e) =>
+                          setAccountForm((prev) => ({
+                            ...prev,
+                            price: e.target.value,
+                          }))
+                        }
                         required
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="discount">Discount (%)</Label>
                       <Input
@@ -341,16 +503,26 @@ export default function AdminPage() {
                         type="number"
                         max="100"
                         value={accountForm.discount}
-                        onChange={(e) => setAccountForm(prev => ({ ...prev, discount: e.target.value }))}
+                        onChange={(e) =>
+                          setAccountForm((prev) => ({
+                            ...prev,
+                            discount: e.target.value,
+                          }))
+                        }
                       />
                     </div>
 
-                    {accountForm.category === 'mobile_legend' && (
+                    {accountForm.category === "mobile_legend" && (
                       <div>
                         <Label htmlFor="collector_level">Collector Level</Label>
-                        <Select 
-                          value={accountForm.collector_level} 
-                          onValueChange={(value) => setAccountForm(prev => ({ ...prev, collector_level: value }))}
+                        <Select
+                          value={accountForm.collector_level}
+                          onValueChange={(value) =>
+                            setAccountForm((prev) => ({
+                              ...prev,
+                              collector_level: value,
+                            }))
+                          }
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select level" />
@@ -368,20 +540,18 @@ export default function AdminPage() {
                   </div>
 
                   <div>
-                    <Label>Images (Up to 5)</Label>
-                    <div className="space-y-2">
-                      {Array.from({ length: 5 }, (_, index) => (
-                        <div key={index} className="flex items-center gap-2">
-                          <Input
-                            type="file"
-                            accept="image/*"
-                            onChange={(e) => handleImageUpload(e, index)}
-                            className="flex-1"
-                          />
-                          {accountForm.images[index] && (
-                            <Badge variant="outline">Image {index + 1}</Badge>
-                          )}
-                        </div>
+                    <Label>Images (1 to 7)</Label>
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={(e) => handleImageUpload(e)}
+                    />
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {accountForm.images.map((img, idx) => (
+                        <Badge key={idx} variant="outline">
+                          Image {idx + 1}
+                        </Badge>
                       ))}
                     </div>
                   </div>
@@ -389,10 +559,14 @@ export default function AdminPage() {
                   <div className="flex gap-2">
                     <Button type="submit" disabled={loading}>
                       <Save className="mr-2 h-4 w-4" />
-                      {isEditing ? 'Update' : 'Create'}
+                      {isEditing ? "Update" : "Create"}
                     </Button>
                     {isEditing && (
-                      <Button type="button" variant="outline" onClick={resetAccountForm}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={resetAccountForm}
+                      >
                         Cancel
                       </Button>
                     )}
@@ -409,15 +583,25 @@ export default function AdminPage() {
               <CardContent>
                 <div className="space-y-4">
                   {accounts.map((account) => (
-                    <div key={account.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={account.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div>
                         <h3 className="font-semibold">{account.title}</h3>
                         <p className="text-sm text-muted-foreground">
-                          {CATEGORIES[account.category as keyof typeof CATEGORIES]} • ${account.price}
+                          {
+                            CATEGORIES[
+                              account.category as keyof typeof CATEGORIES
+                            ]
+                          }{" "}
+                          • ${account.price}
                           {account.discount && ` (-${account.discount}%)`}
                         </p>
                         {account.is_sold && (
-                          <Badge variant="destructive" className="mt-1">Sold Out</Badge>
+                          <Badge variant="destructive" className="mt-1">
+                            Sold Out
+                          </Badge>
                         )}
                       </div>
                       <div className="flex gap-2">
@@ -450,7 +634,9 @@ export default function AdminPage() {
             <Card>
               <CardHeader>
                 <CardTitle>
-                  {isEditing && editingType === 'ad' ? 'Edit Ad' : 'Create New Ad'}
+                  {isEditing && editingType === "ad"
+                    ? "Edit Ad"
+                    : "Create New Ad"}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -461,17 +647,27 @@ export default function AdminPage() {
                       <Input
                         id="ad-title"
                         value={adForm.title}
-                        onChange={(e) => setAdForm(prev => ({ ...prev, title: e.target.value }))}
+                        onChange={(e) =>
+                          setAdForm((prev) => ({
+                            ...prev,
+                            title: e.target.value,
+                          }))
+                        }
                       />
                     </div>
-                    
+
                     <div>
                       <Label htmlFor="order">Order Index</Label>
                       <Input
                         id="order"
                         type="number"
                         value={adForm.order_index}
-                        onChange={(e) => setAdForm(prev => ({ ...prev, order_index: e.target.value }))}
+                        onChange={(e) =>
+                          setAdForm((prev) => ({
+                            ...prev,
+                            order_index: e.target.value,
+                          }))
+                        }
                         required
                       />
                     </div>
@@ -482,7 +678,12 @@ export default function AdminPage() {
                     <Input
                       id="image-url"
                       value={adForm.image_url}
-                      onChange={(e) => setAdForm(prev => ({ ...prev, image_url: e.target.value }))}
+                      onChange={(e) =>
+                        setAdForm((prev) => ({
+                          ...prev,
+                          image_url: e.target.value,
+                        }))
+                      }
                       placeholder="https://example.com/image.jpg"
                       required
                     />
@@ -493,7 +694,9 @@ export default function AdminPage() {
                     <Input
                       id="link"
                       value={adForm.link}
-                      onChange={(e) => setAdForm(prev => ({ ...prev, link: e.target.value }))}
+                      onChange={(e) =>
+                        setAdForm((prev) => ({ ...prev, link: e.target.value }))
+                      }
                       placeholder="https://example.com"
                     />
                   </div>
@@ -501,10 +704,14 @@ export default function AdminPage() {
                   <div className="flex gap-2">
                     <Button type="submit" disabled={loading}>
                       <Save className="mr-2 h-4 w-4" />
-                      {isEditing ? 'Update' : 'Create'}
+                      {isEditing ? "Update" : "Create"}
                     </Button>
                     {isEditing && (
-                      <Button type="button" variant="outline" onClick={resetAdForm}>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={resetAdForm}
+                      >
                         Cancel
                       </Button>
                     )}
@@ -521,10 +728,17 @@ export default function AdminPage() {
               <CardContent>
                 <div className="space-y-4">
                   {ads.map((ad) => (
-                    <div key={ad.id} className="flex items-center justify-between p-4 border rounded-lg">
+                    <div
+                      key={ad.id}
+                      className="flex items-center justify-between p-4 border rounded-lg"
+                    >
                       <div>
-                        <h3 className="font-semibold">{ad.title || 'Untitled Ad'}</h3>
-                        <p className="text-sm text-muted-foreground">Order: {ad.order_index}</p>
+                        <h3 className="font-semibold">
+                          {ad.title || "Untitled Ad"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Order: {ad.order_index}
+                        </p>
                       </div>
                       <div className="flex gap-2">
                         <Button
@@ -561,14 +775,16 @@ export default function AdminPage() {
                     <Label htmlFor="current-password">Current Password</Label>
                     <Input id="current-password" type="password" />
                   </div>
-                  
+
                   <div>
                     <Label htmlFor="new-password">New Password</Label>
                     <Input id="new-password" type="password" />
                   </div>
-                  
+
                   <div>
-                    <Label htmlFor="confirm-password">Confirm New Password</Label>
+                    <Label htmlFor="confirm-password">
+                      Confirm New Password
+                    </Label>
                     <Input id="confirm-password" type="password" />
                   </div>
 
@@ -583,5 +799,5 @@ export default function AdminPage() {
         </Tabs>
       </main>
     </div>
-  )
+  );
 }
