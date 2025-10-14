@@ -16,31 +16,12 @@ import {
 import Logo2 from "../image/Logo2.png";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
+import { useLanguage } from "@/lib/language";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { theme, setTheme } = useTheme();
-  const [language, setLanguage] = useState(() => {
-    try {
-      return (
-        (typeof window !== "undefined" && localStorage.getItem("language")) ||
-        "en"
-      );
-    } catch {
-      return "en";
-    }
-  });
-
-  useEffect(() => {
-    try {
-      if (typeof window !== "undefined") {
-        localStorage.setItem("language", language);
-      }
-      document.documentElement.lang = language;
-    } catch (e) {
-      // ignore
-    }
-  }, [language]);
+  const { language, setLanguage } = useLanguage();
 
   const navLinks = [
     { href: "tg://resolve?domain=kim_mlbb_diamond_shop", label: "Support" },
@@ -141,6 +122,7 @@ export function Navbar() {
             {/* Desktop Controls */}
             <div className="hidden md:flex items-center space-x-2">
               {/* Language Selector */}
+
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger className="w-20">
                   <div className="flex items-center gap-2">

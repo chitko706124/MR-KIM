@@ -79,7 +79,7 @@ export default function HomePage() {
                   ads.map((ad) => (
                     <div
                       key={ad.id}
-                      className="embla__slide relative w-full aspect-[16/9] sm:aspect-[21/9]"
+                      className="embla__slide relative flex-[0_0_100%] sm:flex-[0_0_100%] w-full aspect-[16/9] sm:aspect-[21/9]"
                     >
                       <Image
                         src={ad.image_url}
@@ -114,6 +114,49 @@ export default function HomePage() {
               </>
             )}
           </section>
+
+          {/* <section className="relative">
+            <div className="embla overflow-hidden" ref={emblaRef}>
+              <div className="embla__container flex">
+                {ads.length > 0 &&
+                  ads.map((ad) => (
+                    <div
+                      key={ad.id}
+                      className="embla__slide relative w-full aspect-[16/9] sm:aspect-[21/9]"
+                    >
+                      <Image
+                        src={ad.image_url}
+                        alt={ad.title || "Advertisement"}
+                        fill
+                        className="object-cover"
+                        priority
+                      />
+                    </div>
+                  ))}
+              </div>
+            </div>
+
+            {ads.length > 1 && (
+              <>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
+                  onClick={scrollPrev}
+                >
+                  <ChevronLeft className="h-5 w-5" />
+                </Button>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
+                  onClick={scrollNext}
+                >
+                  <ChevronRight className="h-5 w-5" />
+                </Button>
+              </>
+            )}
+          </section> */}
 
           {/* Category Cards */}
           <section className="my-12 flex flex-col sm:flex-row gap-8 justify-center items-center px-4">
