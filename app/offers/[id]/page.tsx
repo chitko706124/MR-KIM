@@ -20,7 +20,7 @@ export default function OfferDetailPage() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (params.id) {
+    if (params?.id) {
       fetchAccount(params.id as string);
     }
   }, [params.id]);
