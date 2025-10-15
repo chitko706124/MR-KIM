@@ -25,12 +25,6 @@
      - `is_active` (boolean, active status)
      - `created_at` (timestamptz, creation time)
 
-  3. `admin_users` - Admin authentication
-     - `id` (uuid, primary key)
-     - `email` (text, admin email)
-     - `password_hash` (text, hashed password)
-     - `created_at` (timestamptz, creation time)
-
   ## Security
   - Enable RLS on all tables
   - Add policies for public read access on accounts and ads
@@ -64,18 +58,12 @@ CREATE TABLE IF NOT EXISTS ads (
   created_at timestamptz DEFAULT now()
 );
 
--- Create admin_users table
-CREATE TABLE IF NOT EXISTS admin_users (
-  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-  email text UNIQUE NOT NULL,
-  password_hash text NOT NULL,
-  created_at timestamptz DEFAULT now()
-);
+
 
 -- Enable Row Level Security
 ALTER TABLE accounts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE ads ENABLE ROW LEVEL SECURITY;
-ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
 -- Policies for accounts table
 CREATE POLICY "Anyone can view accounts"
@@ -105,13 +93,13 @@ CREATE POLICY "Authenticated users can manage ads"
 
 -- Policies for admin_users table
 CREATE POLICY "Authenticated users can view admin users"
-  ON admin_users
+  ON users
   FOR SELECT
   TO authenticated
   USING (true);
 
 CREATE POLICY "Authenticated users can manage admin users"
-  ON admin_users
+  ON users
   FOR ALL
   TO authenticated
   USING (true);

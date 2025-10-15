@@ -11,6 +11,7 @@ import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/loading/Loading";
+import Link from "next/link";
 
 export default function HomePage() {
   const [ads, setAds] = useState<any[]>([]);
@@ -161,7 +162,8 @@ export default function HomePage() {
           {/* Category Cards */}
           <section className="my-12 flex flex-col sm:flex-row gap-4 justify-center items-center px-4 ">
             {/* Mobile Legend */}
-            <a
+
+            <Link
               href="/mobile-legend"
               className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
             >
@@ -180,10 +182,10 @@ export default function HomePage() {
                   </span>
                 </div>
               </div>
-            </a>
+            </Link>
 
             {/* PUBG */}
-            <a
+            <Link
               href="/pubg"
               className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
             >
@@ -201,7 +203,7 @@ export default function HomePage() {
                   </span>
                 </div>
               </div>
-            </a>
+            </Link>
           </section>
 
           {/* New Arrivals - Mobile Legend */}

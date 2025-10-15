@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Navbar } from "@/components/ui/navbar";
 import { Button } from "@/components/ui/button";
@@ -18,13 +18,19 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { COLLECTOR_LEVELS, CATEGORIES } from "@/lib/constants";
-import { CreditCard as Edit, Trash2, Save } from "lucide-react";
+import { CreditCard as Edit, Trash2, Save, Clock, Undo } from "lucide-react";
 import { toast } from "sonner";
 
 export default function AdminAccountsPage() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [total, setTotal] = useState(0);
+  const [categoryFilter, setCategoryFilter] = useState<
+    "all" | "mobile_legend" | "pubg"
+  >("all");
 
   const [accountForm, setAccountForm] = useState({
     id: "",
@@ -39,26 +45,68 @@ export default function AdminAccountsPage() {
 
   const [isEditing, setIsEditing] = useState(false);
 
+  // Check auth once on mount
   useEffect(() => {
     const check = async () => {
       const { data } = await supabase.auth.getSession();
       const session = (data as any)?.session;
       if (!session) return router.replace("/admin/login");
-      fetchData();
     };
     check();
   }, [router]);
 
-  const fetchData = async () => {
-    try {
-      const { data } = await supabase
-        .from("accounts")
-        .select("*")
-        .order("created_at", { ascending: false });
-      setAccounts(data || []);
-    } catch (error) {
-      console.error("Error fetching accounts:", error);
-    }
+  // Memoized fetch function so it can be used safely in effects
+  const fetchData = useCallback(
+    async (p = 1, category: string | null = null) => {
+      try {
+        setLoading(true);
+        const from = (p - 1) * pageSize;
+        const to = p * pageSize - 1;
+
+        let query = supabase
+          .from("accounts")
+          .select("*", { count: "exact" })
+          .order("created_at", { ascending: false })
+          .range(from, to);
+
+        if (category && category !== "all") {
+          query = query.eq("category", category);
+        }
+
+        const { data, count, error } = await query;
+        if (error) throw error;
+
+        setAccounts(data || []);
+        setTotal((count as number) || 0);
+      } catch (error) {
+        console.error("Error fetching accounts:", error);
+        toast.error("Error fetching accounts");
+      } finally {
+        setLoading(false);
+      }
+    },
+    [pageSize]
+  );
+
+  // Fetch when page or category changes
+  useEffect(() => {
+    fetchData(page, categoryFilter);
+  }, [page, categoryFilter, fetchData]);
+
+  // Function to calculate time remaining until permanent deletion
+  const getTimeRemaining = (deletedAt: string) => {
+    const deletedTime = new Date(deletedAt).getTime();
+    const now = new Date().getTime();
+    const timeDiff = deletedTime + 24 * 60 * 60 * 1000 - now; // 24 hours in milliseconds
+
+    if (timeDiff <= 0) return { hoursRemaining: 0, minutesRemaining: 0 };
+
+    const hoursRemaining = Math.floor(timeDiff / (60 * 60 * 1000));
+    const minutesRemaining = Math.floor(
+      (timeDiff % (60 * 60 * 1000)) / (60 * 1000)
+    );
+
+    return { hoursRemaining, minutesRemaining };
   };
 
   const handleAccountSubmit = async (e: React.FormEvent) => {
@@ -102,21 +150,89 @@ export default function AdminAccountsPage() {
   };
 
   const handleDeleteAccount = async (id: string) => {
+    if (
+      !confirm(
+        "Are you sure you want to mark this account for deletion? It will show as 'Sold Out' for 24 hours before being permanently deleted."
+      )
+    )
+      return;
+
     try {
       const { error } = await supabase
         .from("accounts")
-        .update({ is_sold: true, sold_at: new Date().toISOString() })
+        .update({
+          is_sold: true,
+          sold_at: new Date().toISOString(),
+          deleted_at: new Date().toISOString(), // Mark for deletion
+        })
         .eq("id", id);
+
       if (error) throw error;
-      toast.success("Account marked as sold");
+      toast.success(
+        "Account marked for deletion. It will be permanently deleted in 24 hours."
+      );
       fetchData();
     } catch (error) {
       console.error("Error deleting account:", error);
-      toast.error("Error marking account as sold");
+      toast.error("Error marking account for deletion");
+    }
+  };
+
+  // Function to restore an account (remove from deletion queue)
+  const restoreAccount = async (id: string) => {
+    try {
+      const { error } = await supabase
+        .from("accounts")
+        .update({
+          is_sold: false,
+          sold_at: null,
+          deleted_at: null, // Remove deletion mark
+        })
+        .eq("id", id);
+
+      if (error) throw error;
+      toast.success("Account restored successfully");
+      fetchData();
+    } catch (error) {
+      console.error("Error restoring account:", error);
+      toast.error("Error restoring account");
+    }
+  };
+
+  // Function to manually clean up expired accounts (for testing)
+  const cleanupExpiredAccounts = async () => {
+    try {
+      // Try to call the database function first
+      // const { error } = await supabase.rpc("delete_expired_accounts");
+
+      // if (error) {
+      // If function doesn't exist, use direct SQL
+      const { error: deleteError } = await supabase
+        .from("accounts")
+        .delete()
+        .lt(
+          "deleted_at",
+          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        );
+
+      if (deleteError) throw deleteError;
+      // }
+
+      toast.success("Expired accounts cleaned up");
+      fetchData();
+    } catch (error) {
+      console.error("Cleanup error:", error);
+      toast.error("Error cleaning up expired accounts");
     }
   };
 
   const editAccount = (account: any) => {
+    // Don't allow editing if account is marked for deletion
+    if (account.deleted_at) {
+      toast.error("Cannot edit an account that is marked for deletion");
+      return;
+    }
+
     setAccountForm({
       id: account.id,
       title: account.title,
@@ -182,11 +298,36 @@ export default function AdminAccountsPage() {
     }
   };
 
+  // Pagination helpers
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+
+  const goToPage = (p: number) => {
+    if (p < 1 || p > totalPages) return;
+    setPage(p);
+    fetchData(p, categoryFilter);
+  };
+
+  const handleCategoryChange = (cat: typeof categoryFilter) => {
+    setCategoryFilter(cat);
+    setPage(1);
+    fetchData(1, cat);
+  };
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <main className="container mx-auto px-4 py-8">
-        <h1 className="text-3xl font-bold mb-8">Admin — Accounts</h1>
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold">Admin — Accounts</h1>
+          <Button
+            variant="outline"
+            onClick={cleanupExpiredAccounts}
+            className="flex items-center gap-2"
+          >
+            <Clock className="h-4 w-4" />
+            Cleanup Expired
+          </Button>
+        </div>
 
         <Card>
           <CardHeader>
@@ -343,48 +484,172 @@ export default function AdminAccountsPage() {
 
         <Card className="mt-6">
           <CardHeader>
-            <CardTitle>Accounts List</CardTitle>
+            <div className="flex items-center justify-between w-full">
+              <div className="flex items-center gap-2">
+                <Select
+                  value={categoryFilter}
+                  onValueChange={(v) =>
+                    handleCategoryChange(v as typeof categoryFilter)
+                  }
+                >
+                  <SelectTrigger className="w-48">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All</SelectItem>
+                    <SelectItem value="mobile_legend">Mobile Legend</SelectItem>
+                    <SelectItem value="pubg">PUBG</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={String(pageSize)}
+                  onValueChange={(v) => {
+                    setPageSize(parseInt(v, 10));
+                    setPage(1);
+                  }}
+                >
+                  <SelectTrigger className="w-24">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="5">5</SelectItem>
+                    <SelectItem value="10">10</SelectItem>
+                    <SelectItem value="20">20</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              {accounts.map((account) => (
-                <div
-                  key={account.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div>
-                    <h3 className="font-semibold">{account.title}</h3>
-                    <p className="text-sm text-muted-foreground">
-                      {CATEGORIES[account.category as keyof typeof CATEGORIES]}{" "}
-                      • ${account.price}
-                      {account.discount && ` (-${account.discount}%)`}
-                    </p>
-                    {account.is_sold && (
-                      <Badge variant="destructive" className="mt-1">
-                        Sold Out
-                      </Badge>
-                    )}
-                  </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => editAccount(account)}
-                      disabled={account.is_sold}
+              {loading ? (
+                <p className="text-center text-muted-foreground py-8">
+                  Loading accounts...
+                </p>
+              ) : accounts.length === 0 ? (
+                <p className="text-center text-muted-foreground py-8">
+                  No accounts found. Create your first account above.
+                </p>
+              ) : (
+                accounts.map((account) => {
+                  const isMarkedForDeletion = account.deleted_at;
+                  const timeRemaining = isMarkedForDeletion
+                    ? getTimeRemaining(account.deleted_at)
+                    : null;
+
+                  return (
+                    <div
+                      key={account.id}
+                      className={`flex items-center justify-between p-4 border rounded-lg ${
+                        isMarkedForDeletion
+                          ? "bg-amber-50 border-amber-200"
+                          : "hover:bg-muted/50"
+                      }`}
                     >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteAccount(account.id)}
-                      disabled={account.is_sold}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <h3 className="font-semibold">{account.title}</h3>
+                          {account.is_sold && (
+                            <Badge variant="secondary" className="text-xs">
+                              Sold Out
+                            </Badge>
+                          )}
+                          {isMarkedForDeletion && (
+                            <Badge
+                              variant="destructive"
+                              className="text-xs flex items-center gap-1"
+                            >
+                              <Clock className="h-3 w-3" />
+                              Deleting in {timeRemaining?.hoursRemaining}h{" "}
+                              {timeRemaining?.minutesRemaining}m
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                          {
+                            CATEGORIES[
+                              account.category as keyof typeof CATEGORIES
+                            ]
+                          }{" "}
+                          • ${account.price}
+                          {account.discount && ` (-${account.discount}%)`}
+                        </p>
+                        {account.collector_level && (
+                          <Badge variant="outline" className="text-xs mt-1">
+                            {account.collector_level}
+                          </Badge>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        {!isMarkedForDeletion ? (
+                          <>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => editAccount(account)}
+                              disabled={account.is_sold}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeleteAccount(account.id)}
+                              disabled={account.is_sold}
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </>
+                        ) : (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => restoreAccount(account.id)}
+                            className="flex items-center gap-1"
+                          >
+                            <Undo className="h-3 w-3" />
+                            Restore
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+              {/* Pagination controls */}
+              <div className="flex items-center justify-between mt-4">
+                <div>
+                  Page {page} of {totalPages}
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(page - 1)}
+                    disabled={page <= 1}
+                  >
+                    Prev
+                  </Button>
+                  {Array.from({ length: totalPages }).map((_, i) => (
+                    <Button
+                      key={i}
+                      variant={i + 1 === page ? undefined : "ghost"}
+                      size="sm"
+                      onClick={() => goToPage(i + 1)}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))}
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => goToPage(page + 1)}
+                    disabled={page >= totalPages}
+                  >
+                    Next
+                  </Button>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
