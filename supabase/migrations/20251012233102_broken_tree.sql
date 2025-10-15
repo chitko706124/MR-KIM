@@ -138,17 +138,3 @@ CREATE TRIGGER update_accounts_updated_at
     FOR EACH ROW 
     EXECUTE FUNCTION update_updated_at_column();
 
--- Insert sample data for testing
-INSERT INTO accounts (title, description, price, discount, category, collector_level, images) VALUES
-  ('Epic Mobile Legend Account - Mythic Rank', 'Premium ML account with mythic rank, 150+ heroes, rare skins including KOF and Transformer series. Perfect for serious players.', 299.99, 15, 'mobile_legend', 'Legendary Collector', ARRAY['https://images.pexels.com/photos/735911/pexels-photo-735911.jpeg?auto=compress&cs=tinysrgb&w=800']),
-  ('Pro PUBG Mobile Account - Conqueror', 'High-tier PUBG Mobile account with Conqueror rank, exclusive outfits, rare weapon skins, and premium vehicle skins.', 199.99, NULL, 'pubg', NULL, ARRAY['https://images.pexels.com/photos/3165335/pexels-photo-3165335.jpeg?auto=compress&cs=tinysrgb&w=800']),
-  ('Mobile Legend Starter Pack', 'Great beginner account with 50+ heroes unlocked, premium skins, and Epic rank. Perfect for starting your ML journey.', 89.99, 20, 'mobile_legend', 'Expert Collector', ARRAY['https://images.pexels.com/photos/442576/pexels-photo-442576.jpeg?auto=compress&cs=tinysrgb&w=800']),
-  ('PUBG Crown Tier Account', 'Well-maintained PUBG account with Crown rank, multiple rare skins, and premium battle pass rewards.', 149.99, 10, 'pubg', NULL, ARRAY['https://images.pexels.com/photos/1293261/pexels-photo-1293261.jpeg?auto=compress&cs=tinysrgb&w=800']);
-
-INSERT INTO ads (image_url, title, order_index) VALUES
-  ('https://images.pexels.com/photos/275033/pexels-photo-275033.jpeg?auto=compress&cs=tinysrgb&w=1920', 'Premium Gaming Accounts Sale', 1),
-  ('https://images.pexels.com/photos/442576/pexels-photo-442576.jpeg?auto=compress&cs=tinysrgb&w=1920', 'Mobile Legend Special Offers', 2);
-
--- Create default admin user (password: 'admin123' - should be changed in production)
-INSERT INTO admin_users (email, password_hash) VALUES
-  ('admin@gamehub.com', '$2b$10$rHzZPjr8xqdo5w3DvNs2JuX.m1ZNQFW7Qgj1SXHVL9eVkJ2iHJGa6');

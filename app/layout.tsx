@@ -16,7 +16,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className="font-sans">
+      <body className="font-sans max-w-7xl mx-auto">
         <Providers>{children}</Providers>
       </body>
     </html>

@@ -179,7 +179,7 @@ export function Navbar() {
                           {link.label}
                         </Link>
                       ))}
-                      {!isAdmin && (
+                      {isAdmin && (
                         <>
                           <Link
                             href="/admin/accounts"

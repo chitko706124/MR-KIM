@@ -105,10 +105,10 @@ export default function OfferDetailPage() {
                 {account.discount ? (
                   <>
                     <span className="text-3xl font-bold text-primary">
-                      ${finalPrice.toFixed(2)}
+                      {finalPrice.toLocaleString()} MMK
                     </span>
                     <span className="text-xl text-muted-foreground line-through">
-                      ${account.price.toFixed(2)}
+                      {account.price.toLocaleString()} MMK
                     </span>
                     <Badge className="bg-green-500 hover:bg-green-600">
                       -{account.discount}% OFF
@@ -116,7 +116,7 @@ export default function OfferDetailPage() {
                   </>
                 ) : (
                   <span className="text-3xl font-bold text-primary">
-                    ${account.price.toFixed(2)}
+                    {account.price.toLocaleString()} MMK
                   </span>
                 )}
               </div>
@@ -141,7 +141,7 @@ export default function OfferDetailPage() {
               <CardContent className="space-y-3">
                 <Button asChild className="w-full" size="lg">
                   <a
-                    href={CONTACT_LINKS.telegram}
+                    href={`tg://resolve?domain=KIM_2Thousand7`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
