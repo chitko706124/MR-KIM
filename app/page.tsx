@@ -41,7 +41,7 @@ export default function HomePage() {
         .select("*")
         .eq("category", "mobile_legend")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(5);
 
       // Fetch PUBG accounts (latest 10)
       const { data: pubgData } = await supabase
@@ -49,7 +49,7 @@ export default function HomePage() {
         .select("*")
         .eq("category", "pubg")
         .order("created_at", { ascending: false })
-        .limit(10);
+        .limit(5);
 
       setAds(adsData || []);
       setMlAccounts(mlData || []);

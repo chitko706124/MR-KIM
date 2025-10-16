@@ -1,12 +1,11 @@
 export const COLLECTOR_LEVELS = [
-  "Starting Collector",
-  "Amateur Collector",
-  "Expert Collector",
-  "Advanced Collector",
-  "Elite Collector",
-  "Master Collector",
-  "Super Collector",
-  "Legendary Collector",
+  "Discount Accounts",
+  "Expert collector",
+  "Renowned Collector",
+  "Exalted Collector",
+  "Mega Collector",
+  "World Collector",
+  "World Collector +",
 ] as const;
 
 export const CATEGORIES = {

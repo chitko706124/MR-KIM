@@ -8,8 +8,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { supabase } from "@/lib/supabase";
-import { Save, Edit, Trash2 } from "lucide-react";
+import { Save, Edit, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function AdminAdsPage() {
   const router = useRouter();
@@ -22,6 +23,9 @@ export default function AdminAdsPage() {
     order_index: "",
   });
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string>("");
 
   useEffect(() => {
     const check = async () => {
@@ -45,17 +49,106 @@ export default function AdminAdsPage() {
     }
   };
 
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // Check file type
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select an image file");
+        return;
+      }
+
+      // Check file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size should be less than 5MB");
+        return;
+      }
+
+      setSelectedFile(file);
+
+      // Create preview
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    }
+  };
+
+  const uploadImage = async (file: File): Promise<string> => {
+    try {
+      setUploading(true);
+
+      // Generate unique file name
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Math.random()
+        .toString(36)
+        .substring(2)}_${Date.now()}.${fileExt}`;
+      const filePath = fileName; // ✅ Just the file name, no folder path
+
+      console.log("Uploading to bucket: ads-images");
+
+      // Upload to Supabase Storage - use correct bucket name
+      const { data, error } = await supabase.storage
+        .from("ads-images") // ✅ Use your actual bucket name
+        .upload(filePath, file, {
+          cacheControl: "3600",
+          upsert: false,
+        });
+
+      if (error) {
+        console.error("Supabase upload error:", error);
+        throw error;
+      }
+
+      // Get public URL - use correct bucket name
+      const {
+        data: { publicUrl },
+      } = supabase.storage
+        .from("ads-images") // ✅ Use your actual bucket name
+        .getPublicUrl(filePath);
+
+      console.log("Image uploaded successfully:", publicUrl);
+      toast.success("Image uploaded successfully");
+      return publicUrl;
+    } catch (error) {
+      console.error("Error uploading image:", error);
+      toast.error("Failed to upload image. Please try again.");
+      throw error;
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleAdSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Validate required fields
+    if (!adForm.order_index) {
+      toast.error("Please enter an order index");
+      return;
+    }
+
+    if (!selectedFile && !adForm.image_url) {
+      toast.error("Please select an image");
+      return;
+    }
+
     setLoading(true);
+
     try {
+      let imageUrl = adForm.image_url;
+
+      // Upload new image if selected
+      if (selectedFile) {
+        imageUrl = await uploadImage(selectedFile);
+      }
+
       const adData = {
         title: adForm.title,
-        image_url: adForm.image_url,
+        image_url: imageUrl,
         link: adForm.link || null,
         order_index: parseInt(adForm.order_index),
         is_active: true,
       };
+
       if (adForm.id) {
         const { error } = await supabase
           .from("ads")
@@ -68,13 +161,9 @@ export default function AdminAdsPage() {
         if (error) throw error;
         toast.success("Ad created");
       }
-      setAdForm({
-        id: "",
-        title: "",
-        image_url: "",
-        link: "",
-        order_index: "",
-      });
+
+      // Reset form
+      resetForm();
       fetchData();
     } catch (err) {
       console.error("Error saving ad", err);
@@ -84,7 +173,12 @@ export default function AdminAdsPage() {
     }
   };
 
-  const editAd = (ad: any) =>
+  const removeSelectedFile = () => {
+    setSelectedFile(null);
+    setImagePreview("");
+  };
+
+  const editAd = (ad: any) => {
     setAdForm({
       id: ad.id,
       title: ad.title || "",
@@ -92,7 +186,12 @@ export default function AdminAdsPage() {
       link: ad.link || "",
       order_index: ad.order_index.toString(),
     });
+    setImagePreview(ad.image_url);
+  };
+
   const deleteAd = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this ad?")) return;
+
     try {
       const { error } = await supabase.from("ads").delete().eq("id", id);
       if (error) throw error;
@@ -102,6 +201,18 @@ export default function AdminAdsPage() {
       console.error(err);
       toast.error("Error deleting ad");
     }
+  };
+
+  const resetForm = () => {
+    setAdForm({
+      id: "",
+      title: "",
+      image_url: "",
+      link: "",
+      order_index: "",
+    });
+    setSelectedFile(null);
+    setImagePreview("");
   };
 
   return (
@@ -125,10 +236,11 @@ export default function AdminAdsPage() {
                     onChange={(e) =>
                       setAdForm((prev) => ({ ...prev, title: e.target.value }))
                     }
+                    placeholder="Enter ad title"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="order">Order Index</Label>
+                  <Label htmlFor="order">Order Index *</Label>
                   <Input
                     id="order"
                     type="number"
@@ -139,24 +251,66 @@ export default function AdminAdsPage() {
                         order_index: e.target.value,
                       }))
                     }
+                    placeholder="Display order"
                     required
                   />
                 </div>
               </div>
+
+              {/* Image Upload Section */}
               <div>
-                <Label htmlFor="image-url">Image URL</Label>
-                <Input
-                  id="image-url"
-                  value={adForm.image_url}
-                  onChange={(e) =>
-                    setAdForm((prev) => ({
-                      ...prev,
-                      image_url: e.target.value,
-                    }))
-                  }
-                  required
-                />
+                <Label htmlFor="image-upload">Ad Image *</Label>
+                <div className="mt-2">
+                  {imagePreview ? (
+                    <div className="relative inline-block">
+                      <div className="w-48 h-32 relative border rounded-lg overflow-hidden">
+                        <Image
+                          src={imagePreview}
+                          alt="Preview"
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        variant="destructive"
+                        size="sm"
+                        className="absolute -top-2 -right-2 h-6 w-6 p-0 rounded-full"
+                        onClick={removeSelectedFile}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                      <Upload className="h-8 w-8 text-muted-foreground mx-auto mb-2" />
+                      <Label
+                        htmlFor="image-upload"
+                        className="cursor-pointer text-sm text-muted-foreground"
+                      >
+                        Click to upload image
+                        <Input
+                          id="image-upload"
+                          type="file"
+                          accept="image/*"
+                          onChange={handleFileSelect}
+                          className="hidden"
+                          disabled={uploading}
+                        />
+                      </Label>
+                      <p className="text-xs text-muted-foreground mt-1">
+                        PNG, JPG, GIF up to 5MB
+                      </p>
+                      {uploading && (
+                        <p className="text-xs text-blue-500 mt-1">
+                          Uploading...
+                        </p>
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
+
               <div>
                 <Label htmlFor="link">Link (Optional)</Label>
                 <Input
@@ -165,27 +319,25 @@ export default function AdminAdsPage() {
                   onChange={(e) =>
                     setAdForm((prev) => ({ ...prev, link: e.target.value }))
                   }
+                  placeholder="https://example.com"
                 />
               </div>
+
               <div className="flex gap-2">
-                <Button type="submit" disabled={loading}>
-                  <Save className="mr-2 h-4 w-4" />
+                <Button
+                  type="submit"
+                  disabled={loading || uploading}
+                  className="flex items-center gap-2"
+                >
+                  {loading || uploading ? (
+                    <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
                   {adForm.id ? "Update" : "Create"}
                 </Button>
-                {adForm.id && (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() =>
-                      setAdForm({
-                        id: "",
-                        title: "",
-                        image_url: "",
-                        link: "",
-                        order_index: "",
-                      })
-                    }
-                  >
+                {(adForm.id || selectedFile) && (
+                  <Button type="button" variant="outline" onClick={resetForm}>
                     Cancel
                   </Button>
                 )}
@@ -205,13 +357,24 @@ export default function AdminAdsPage() {
                   key={ad.id}
                   className="flex items-center justify-between p-4 border rounded-lg"
                 >
-                  <div>
-                    <h3 className="font-semibold">
-                      {ad.title || "Untitled Ad"}
-                    </h3>
-                    <p className="text-sm text-muted-foreground">
-                      Order: {ad.order_index}
-                    </p>
+                  <div className="flex items-center gap-4">
+                    <div className="w-16 h-12 relative rounded overflow-hidden">
+                      <Image
+                        src={ad.image_url}
+                        alt={ad.title || "Ad image"}
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold">
+                        {ad.title || "Untitled Ad"}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        Order: {ad.order_index} •{" "}
+                        {ad.link ? "Has link" : "No link"}
+                      </p>
+                    </div>
                   </div>
                   <div className="flex gap-2">
                     <Button

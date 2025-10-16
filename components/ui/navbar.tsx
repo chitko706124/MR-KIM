@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Search, Menu, X, Sun, Moon, Globe, Gamepad2 } from "lucide-react";
+import { Search, Menu, Sun, Moon, Globe, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import {
@@ -13,6 +14,14 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 import Logo2 from "../image/Logo2.png";
 import Image from "next/image";
 import { supabase } from "@/lib/supabase";
@@ -20,43 +29,115 @@ import { useLanguage } from "@/lib/language";
 
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchResults, setSearchResults] = useState([]);
+  const [isSearching, setIsSearching] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const { theme, setTheme } = useTheme();
   const { language, setLanguage } = useLanguage();
+  const router = useRouter();
 
   const navLinks = [
     { href: "tg://resolve?domain=kim_mlbb_diamond_shop", label: "Support" },
   ];
 
-  const [isAdmin, setIsAdmin] = useState(false);
-
   useEffect(() => {
-    const checkAdmin = async () => {
+    const checkAuth = async () => {
       try {
-        const { data } = await supabase.auth.getSession();
-        const session = (data as any)?.session;
-        const email = session?.user?.email;
-        if (!email) {
-          setIsAdmin(false);
-          return;
-        }
-
-        // Supabase default users table is "users" in auth schema
-        const { data: userData, error } = await supabase
-          .from("users")
-          .select("id, email")
-          .eq("email", email)
-          .single();
-
-        if (!error) setIsAdmin(true);
-        else setIsAdmin(false);
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        setIsAdmin(!!session);
       } catch (err) {
-        console.error("admin check error", err);
+        console.error("Auth check error", err);
         setIsAdmin(false);
       }
     };
 
-    checkAdmin();
+    checkAuth();
+
+    // Listen for auth state changes
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsAdmin(!!session);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Add the handleSignOut function here
+  const handleSignOut = async () => {
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) throw error;
+
+      setIsAdmin(false);
+      router.push("/");
+      router.refresh(); // Refresh the page to update the state
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
+  };
+
+  // Search function
+  const handleSearch = async (query: string) => {
+    if (!query.trim()) {
+      setSearchResults([]);
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const { data, error } = await supabase
+        .from("accounts")
+        .select("id, title, price, images, category, is_sold")
+        .ilike("title", `%${query}%`)
+        .eq("is_sold", false)
+        .limit(8);
+
+      if (error) throw error;
+      setSearchResults(data || []);
+    } catch (error) {
+      console.error("Search error:", error);
+      setSearchResults([]);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  // Debounced search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      handleSearch(searchQuery);
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  const handleResultClick = (accountId: string) => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsOpen(false);
+    router.push(`/offers/${accountId}`);
+  };
+
+  const handleViewAllResults = () => {
+    setSearchOpen(false);
+    setSearchQuery("");
+    setSearchResults([]);
+    setIsOpen(false);
+    router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (searchQuery.trim()) {
+      handleViewAllResults();
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -108,21 +189,118 @@ export function Navbar() {
                 >
                   Profile
                 </Link>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="text-sm"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
               </>
             )}
           </div>
 
           {/* Right Side Controls */}
           <div className="flex items-center space-x-2">
-            {/* Search */}
-            <Button variant="ghost" size="icon">
-              <Search className="h-4 w-4" />
-            </Button>
+            {/* Search Dialog */}
+            <Dialog open={searchOpen} onOpenChange={setSearchOpen}>
+              <DialogTrigger asChild>
+                <Button variant="ghost" size="icon">
+                  <Search className="h-4 w-4" />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>Search Accounts</DialogTitle>
+                </DialogHeader>
+                <form onSubmit={handleSearchSubmit}>
+                  <div className="space-y-4">
+                    {/* Search Input */}
+                    <div className="relative">
+                      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        placeholder="Search by account title..."
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        className="pl-10"
+                        autoFocus
+                      />
+                    </div>
+
+                    {/* Search Results */}
+                    <div className="max-h-60 overflow-y-auto">
+                      {isSearching ? (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground">
+                            Searching...
+                          </p>
+                        </div>
+                      ) : searchQuery && searchResults.length === 0 ? (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground">
+                            No accounts found matching "{searchQuery}"
+                          </p>
+                        </div>
+                      ) : searchResults.length > 0 ? (
+                        <div className="space-y-2">
+                          {searchResults.map((account) => (
+                            <div
+                              key={account.id}
+                              className="flex items-center justify-between p-3 border rounded-lg hover:bg-accent cursor-pointer transition-colors"
+                              onClick={() => handleResultClick(account.id)}
+                            >
+                              <div className="flex items-center space-x-3">
+                                {account.images &&
+                                  account.images.length > 0 && (
+                                    <div className="w-10 h-10 relative rounded overflow-hidden">
+                                      <Image
+                                        src={account.images[0]}
+                                        alt={account.title}
+                                        fill
+                                        className="object-cover"
+                                      />
+                                    </div>
+                                  )}
+                                <div>
+                                  <p className="text-sm font-medium line-clamp-1">
+                                    {account.title}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {account.price?.toLocaleString()} MMK
+                                  </p>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+
+                          {/* View All Results */}
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full mt-2"
+                            onClick={handleViewAllResults}
+                          >
+                            View All Results ({searchResults.length})
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="text-center py-4">
+                          <p className="text-sm text-muted-foreground">
+                            Type to search for accounts
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </form>
+              </DialogContent>
+            </Dialog>
 
             {/* Desktop Controls */}
             <div className="hidden md:flex items-center space-x-2">
               {/* Language Selector */}
-
               <Select value={language} onValueChange={setLanguage}>
                 <SelectTrigger className="w-20">
                   <div className="flex items-center gap-2">
@@ -146,14 +324,23 @@ export function Navbar() {
                 <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
               </Button>
 
-              {/* Admin Login button */}
-              {!isAdmin && (
+              {/* Admin Login/Logout button */}
+              {!isAdmin ? (
                 <Link href="/admin/login">
                   <Button variant="outline" size="sm" className="ml-2">
-                    {" "}
                     Admin Login
                   </Button>
                 </Link>
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSignOut}
+                  className="ml-2"
+                >
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Sign Out
+                </Button>
               )}
             </div>
 
@@ -238,13 +425,26 @@ export function Navbar() {
                         </Button>
                       </div>
                     </div>
-                    {/* Admin Login button */}
-                    {!isAdmin && (
+
+                    {/* Admin Login/Logout button in Mobile */}
+                    {!isAdmin ? (
                       <Link href="/admin/login">
-                        <Button variant="outline" size="sm">
+                        <Button variant="outline" size="sm" className="w-full">
                           Admin Login
                         </Button>
                       </Link>
+                    ) : (
+                      <Button
+                        variant="outline"
+                        className="w-full"
+                        onClick={() => {
+                          handleSignOut();
+                          setIsOpen(false);
+                        }}
+                      >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                      </Button>
                     )}
                   </div>
                 </SheetContent>

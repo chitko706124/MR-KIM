@@ -152,7 +152,7 @@ export default function AdminAccountsPage() {
   const handleDeleteAccount = async (id: string) => {
     if (
       !confirm(
-        "Are you sure you want to mark this account for deletion? It will show as 'Sold Out' for 24 hours before being permanently deleted."
+        "Are you sure you want to mark this account for deletion? It will show as 'Sold Out' for 24 hours before being permanently deleted along with its images."
       )
     )
       return;
@@ -169,7 +169,7 @@ export default function AdminAccountsPage() {
 
       if (error) throw error;
       toast.success(
-        "Account marked for deletion. It will be permanently deleted in 24 hours."
+        "Account marked for deletion. It will be permanently deleted in 24 hours along with its images."
       );
       fetchData();
     } catch (error) {
@@ -199,26 +199,89 @@ export default function AdminAccountsPage() {
     }
   };
 
-  // Function to manually clean up expired accounts (for testing)
+  // Function to manually clean up expired accounts and their images
   const cleanupExpiredAccounts = async () => {
     try {
-      // Try to call the database function first
-      // const { error } = await supabase.rpc("delete_expired_accounts");
+      const twentyFourHoursAgo = new Date(
+        Date.now() - 2 * 60 * 1000
+      ).toISOString();
 
-      // if (error) {
-      // If function doesn't exist, use direct SQL
-      const { error: deleteError } = await supabase
+      const { data: expiredAccounts, error: fetchError } = await supabase
         .from("accounts")
-        .delete()
-        .lt(
-          "deleted_at",
-          new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString()
+        .select("id, images")
+        .lt("deleted_at", twentyFourHoursAgo);
+
+      if (fetchError) throw fetchError;
+
+      if (!expiredAccounts || expiredAccounts.length === 0) {
+        toast.info("No expired accounts to clean up");
+        return;
+      }
+
+      let totalImagesDeleted = 0;
+      let accountsDeleted = 0;
+
+      for (const account of expiredAccounts) {
+        try {
+          // Delete images from storage
+          if (account.images && account.images.length > 0) {
+            const fileNames = account.images
+              .map((url: string) => {
+                const urlParts = url.split("/");
+                return urlParts[urlParts.length - 1];
+              })
+              .filter(Boolean); // Remove any empty strings
+
+            if (fileNames.length > 0) {
+              const { error: deleteStorageError } = await supabase.storage
+                .from("accounts-images")
+                .remove(fileNames);
+
+              if (deleteStorageError) {
+                console.warn(
+                  `Failed to delete some images for account ${account.id}:`,
+                  deleteStorageError
+                );
+              } else {
+                totalImagesDeleted += fileNames.length;
+                console.log(
+                  `Deleted ${fileNames.length} images for account ${account.id}`
+                );
+              }
+            }
+          }
+
+          // Delete the account from database
+          const { error: deleteAccountError } = await supabase
+            .from("accounts")
+            .delete()
+            .eq("id", account.id);
+
+          if (deleteAccountError) {
+            console.error(
+              `Failed to delete account ${account.id}:`,
+              deleteAccountError
+            );
+          } else {
+            accountsDeleted++;
+          }
+        } catch (accountError) {
+          console.error(
+            `Error processing account ${account.id}:`,
+            accountError
+          );
+          // Continue with next account even if this one fails
+        }
+      }
+
+      if (accountsDeleted > 0) {
+        toast.success(
+          `Cleaned up ${accountsDeleted} accounts and ${totalImagesDeleted} images`
         );
+      } else {
+        toast.info("No accounts were deleted during cleanup");
+      }
 
-      if (deleteError) throw deleteError;
-      // }
-
-      toast.success("Expired accounts cleaned up");
       fetchData();
     } catch (error) {
       console.error("Cleanup error:", error);
@@ -296,6 +359,13 @@ export default function AdminAccountsPage() {
       console.error("Storage error", err);
       toast.error("Image upload failed");
     }
+  };
+
+  // Function to remove an image from the form
+  const removeImage = (index: number) => {
+    const newImages = [...accountForm.images];
+    newImages.splice(index, 1);
+    setAccountForm((prev) => ({ ...prev, images: newImages }));
   };
 
   // Pagination helpers
@@ -456,11 +526,19 @@ export default function AdminAccountsPage() {
                 />
                 <div className="flex flex-wrap gap-2 mt-2">
                   {accountForm.images.map((img, idx) => (
-                    <Badge key={idx} variant="outline">
-                      Image {idx + 1}
+                    <Badge
+                      key={idx}
+                      variant="outline"
+                      className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
+                      onClick={() => removeImage(idx)}
+                    >
+                      Image {idx + 1} ×
                     </Badge>
                   ))}
                 </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Click on image badges to remove them
+                </p>
               </div>
 
               <div className="flex gap-2">

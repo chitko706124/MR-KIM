@@ -20,7 +20,7 @@ export default function OfferDetailPage() {
   const { t } = useLanguage();
 
   useEffect(() => {
-    if (params.id) {
+    if (params?.id) {
       fetchAccount(params.id as string);
     }
   }, [params.id]);
@@ -99,7 +99,7 @@ export default function OfferDetailPage() {
                 )}
               </div>
 
-              <h1 className="text-3xl font-bold mb-4">{account.title}</h1>
+              <h1 className="text-3xl font-bold mb-4">Code {account.title}</h1>
 
               <div className="flex items-center gap-4 mb-6">
                 {account.discount ? (
@@ -136,29 +136,58 @@ export default function OfferDetailPage() {
             {/* Contact Buttons */}
             <Card>
               <CardHeader>
-                <CardTitle>{t("contact.seller")}</CardTitle>
+              <CardTitle>{t("contact.seller")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                <Button asChild className="w-full" size="lg">
-                  <a
-                    href={`tg://resolve?domain=KIM_2Thousand7`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <MessageCircle className="mr-2 h-5 w-5" />
-                    {t("contact.telegram")}
-                  </a>
-                </Button>
-                <Button asChild variant="outline" className="w-full" size="lg">
-                  <a
-                    href={CONTACT_LINKS.viber}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Phone className="mr-2 h-5 w-5" />
-                    {t("contact.viber")}
-                  </a>
-                </Button>
+              <Button asChild className="w-full" size="lg" disabled={account.is_sold}>
+                {account.is_sold ? (
+                <span
+                  aria-disabled="true"
+                  className="flex items-center justify-center opacity-50 cursor-not-allowed"
+                >
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  {t("contact.telegram")}
+                </span>
+                ) : (
+                <a
+                  href={`tg://resolve?domain=KIM_2Thousand7`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center"
+                >
+                  <MessageCircle className="mr-2 h-5 w-5" />
+                  {t("contact.telegram")}
+                </a>
+                )}
+              </Button>
+
+              <Button
+                asChild
+                variant="outline"
+                className="w-full"
+                size="lg"
+                disabled={account.is_sold}
+              >
+                {account.is_sold ? (
+                <span
+                  aria-disabled="true"
+                  className="flex items-center justify-center opacity-50 cursor-not-allowed"
+                >
+                  <Phone className="mr-2 h-5 w-5" />
+                  {t("contact.viber")}
+                </span>
+                ) : (
+                <a
+                  href={CONTACT_LINKS.viber}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center"
+                >
+                  <Phone className="mr-2 h-5 w-5" />
+                  {t("contact.viber")}
+                </a>
+                )}
+              </Button>
               </CardContent>
             </Card>
           </div>

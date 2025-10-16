@@ -28,7 +28,7 @@ export function AccountCard({
   isSold,
 }: AccountCardProps) {
   const finalPrice = discount ? price - (price * discount) / 100 : price;
-  const thumbnailImage = images[0] || "/placeholder-game.jpg";
+  const thumbnailImage = images[0];
 
   return (
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>

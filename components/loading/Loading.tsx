@@ -5,7 +5,7 @@ const Loading = () => {
   return (
     <div className="wrapper">
       <svg>
-        <text x="50%" y="50%" dy=".35em" text-anchor="middle">
+        <text x="50%" y="50%" dy=".35em" textAnchor="middle">
           MR.KIM
         </text>
       </svg>
