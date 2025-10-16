@@ -33,7 +33,7 @@ export function AccountCard({
   return (
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
       <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20">
-        <Link href={`/offers/${id}`}>
+          <Link href={`/offers/${encodeURIComponent(id)}`}>
           <div className="relative aspect-video">
             <Image
               src={thumbnailImage}
