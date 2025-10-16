@@ -25,6 +25,9 @@ interface Account {
   is_sold?: boolean;
   images: string[];
 }
+// app/offers/[id]/page.tsx
+export const dynamic = 'force-dynamic'; // Disable caching
+export const revalidate = 0; // Disable revalidation
 
 export default function OfferDetailPage() {
   const params = useParams();
