@@ -1,13 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Remove output: 'export' for dynamic data
+  // NO output: 'export' - This is crucial
   eslint: {
     ignoreDuringBuilds: true,
   },
   images: { unoptimized: true },
-  experimental: {
-    serverComponentsExternalPackages: ['@supabase/supabase-js']
-  },
 };
 
 module.exports = nextConfig;
