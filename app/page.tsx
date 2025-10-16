@@ -159,51 +159,72 @@ export default function HomePage() {
             )}
           </section>
 
+          {/* Mingalar par Text */}
+          <div className="text-center my-12">
+            <div className="relative inline-block">
+              <h2 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+                {t("hero.title")}
+              </h2>
+              <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
+            </div>
+            <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto leading-relaxed">
+              {t("hero.subtitle")}
+            </p>
+          </div>
           {/* Category Cards */}
-          <section className="my-12 flex flex-col sm:flex-row gap-4 justify-center items-center px-4 ">
-            {/* Mobile Legend */}
+          <section className="my-12 mx-12 relative border-2 border-primary/20 rounded-xl p-6 bg-gradient-to-br from-background to-muted/50 shadow-sm">
+            {/* SHOP Text */}
+            <div className="absolute -top-3 left-6">
+              <span className="bg-background px-4 py-1 text-sm font-bold text-primary border-2 border-primary/20 rounded-lg shadow-sm">
+                SHOP
+              </span>
+            </div>
 
-            <Link
-              href="/mobile-legend"
-              className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
-            >
-              <Image
-                src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/22/68ca5b05a7169_com.mobile.legends.png"
-                alt="Mobile Legend"
-                fill
-                className="object-cover"
-                priority
-              />
-              {/* Blur overlay for text */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center mt-24">
-                  <span className="text-white/90 text-sm">
-                    {t("hero.explore_mlbb_accounts")}
-                  </span>
+            {/* Rest of the content remains the same */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4">
+              {/* Mobile Legend */}
+              <Link
+                href="/mobile-legend"
+                className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
+              >
+                <Image
+                  src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/22/68ca5b05a7169_com.mobile.legends.png"
+                  alt="Mobile Legend"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                {/* Blur overlay for text */}
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center mt-24">
+                    <span className="text-white/90 text-sm">
+                      {t("hero.explore_mlbb_accounts")}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
 
-            {/* PUBG */}
-            <Link
-              href="/pubg"
-              className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
-            >
-              <Image
-                src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/03/68b8f42815eab_com.pubg.krmobile.png"
-                alt="PUBG"
-                fill
-                className="object-cover"
-                priority
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center mt-24">
-                  <span className="text-white/90 text-sm">
-                    {t("hero.explore_pubg_accounts")}
-                  </span>
+              {/* PUBG */}
+              <Link
+                href="/pubg"
+                className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
+              >
+                <Image
+                  src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/03/68b8f42815eab_com.pubg.krmobile.png"
+                  alt="PUBG"
+                  fill
+                  className="object-cover"
+                  priority
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center mt-24">
+                    <span className="text-white/90 text-sm">
+                      {t("hero.explore_pubg_accounts")}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </Link>
+              </Link>
+            </div>
           </section>
 
           {/* New Arrivals - Mobile Legend */}

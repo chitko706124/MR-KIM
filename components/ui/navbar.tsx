@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
@@ -27,11 +27,14 @@ import Image from "next/image";
 import { supabase } from "@/lib/supabase";
 import { useLanguage } from "@/lib/language";
 
+// Define empty array as constant to avoid re-renders
+const EMPTY_ARRAY: any[] = [];
+
 export function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchResults, setSearchResults] = useState([]);
+  const [searchResults, setSearchResults] = useState<any[]>(EMPTY_ARRAY);
   const [isSearching, setIsSearching] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
   const { theme, setTheme } = useTheme();
@@ -81,10 +84,10 @@ export function Navbar() {
     }
   };
 
-  // Search function
-  const handleSearch = async (query: string) => {
+  // Search function - fixed with proper typing
+  const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
-      setSearchResults([]);
+      setSearchResults(EMPTY_ARRAY);
       return;
     }
 
@@ -98,14 +101,17 @@ export function Navbar() {
         .limit(8);
 
       if (error) throw error;
-      setSearchResults(data || []);
+
+      // Use nullish coalescing with the constant
+      const results = data ?? EMPTY_ARRAY;
+      setSearchResults(results);
     } catch (error) {
       console.error("Search error:", error);
-      setSearchResults([]);
+      setSearchResults(EMPTY_ARRAY);
     } finally {
       setIsSearching(false);
     }
-  };
+  }, []);
 
   // Debounced search
   useEffect(() => {
@@ -114,30 +120,40 @@ export function Navbar() {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [searchQuery]);
+  }, [searchQuery, handleSearch]);
 
-  const handleResultClick = (accountId: string) => {
+  const handleResultClick = useCallback(
+    (accountId: string) => {
+      setSearchOpen(false);
+      setSearchQuery("");
+      setSearchResults(EMPTY_ARRAY);
+      setIsOpen(false);
+      router.push(`/offers/${accountId}`);
+    },
+    [router]
+  );
+
+  const handleViewAllResults = useCallback(() => {
     setSearchOpen(false);
     setSearchQuery("");
-    setSearchResults([]);
-    setIsOpen(false);
-    router.push(`/offers/${accountId}`);
-  };
-
-  const handleViewAllResults = () => {
-    setSearchOpen(false);
-    setSearchQuery("");
-    setSearchResults([]);
+    setSearchResults(EMPTY_ARRAY);
     setIsOpen(false);
     router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
-  };
+  }, [searchQuery, router]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      handleViewAllResults();
-    }
-  };
+  const handleSearchSubmit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (searchQuery.trim()) {
+        setSearchOpen(false);
+        setSearchQuery("");
+        setSearchResults(EMPTY_ARRAY);
+        setIsOpen(false);
+        router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
+      }
+    },
+    [searchQuery, router]
+  );
 
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -160,6 +176,12 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
+            <Link
+              href="/offers"
+              className="text-sm font-medium transition-colors hover:text-primary"
+            >
+              All Offers
+            </Link>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -354,8 +376,74 @@ export function Navbar() {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80">
                   <div className="flex flex-col space-y-6 mt-8">
+                    {/* Search in Mobile Menu */}
+                    <div className="space-y-2">
+                      <div className="relative">
+                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          placeholder="Search accounts..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-10"
+                        />
+                      </div>
+
+                      {/* Mobile Search Results */}
+                      {searchQuery && (
+                        <div className="max-h-40 overflow-y-auto border rounded-lg">
+                          {isSearching ? (
+                            <div className="p-3 text-center">
+                              <p className="text-sm text-muted-foreground">
+                                Searching...
+                              </p>
+                            </div>
+                          ) : searchResults.length > 0 ? (
+                            <>
+                              {searchResults.map((account) => (
+                                <div
+                                  key={account.id}
+                                  className="p-2 border-b last:border-b-0 hover:bg-accent cursor-pointer"
+                                  onClick={() => {
+                                    handleResultClick(account.id);
+                                  }}
+                                >
+                                  <p className="text-sm font-medium line-clamp-1">
+                                    {account.title}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {account.price?.toLocaleString()} MMK
+                                  </p>
+                                </div>
+                              ))}
+                              <div
+                                className="p-2 text-center border-t hover:bg-accent cursor-pointer"
+                                onClick={handleViewAllResults}
+                              >
+                                <p className="text-sm font-medium text-primary">
+                                  View All Results
+                                </p>
+                              </div>
+                            </>
+                          ) : searchQuery ? (
+                            <div className="p-3 text-center">
+                              <p className="text-sm text-muted-foreground">
+                                No results found
+                              </p>
+                            </div>
+                          ) : null}
+                        </div>
+                      )}
+                    </div>
+
                     {/* Navigation Links */}
                     <div className="space-y-4">
+                      <Link
+                        href="/offers"
+                        className="block text-lg font-medium transition-colors hover:text-primary"
+                        onClick={() => setIsOpen(false)}
+                      >
+                        All Offers
+                      </Link>
                       {navLinks.map((link) => (
                         <Link
                           key={link.href}

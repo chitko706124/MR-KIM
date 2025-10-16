@@ -15,14 +15,14 @@ const translations = {
     "nav.admin": "Admin",
     "nav.home": "Home",
     "nav.logout": "Logout",
-    "hero.title": "Premium Game Accounts",
+    "hero.title": "Premium Game Accounts Shop",
     "hero.subtitle":
       "Find your perfect gaming account. Top-ranked, verified, and ready to play.",
     "hero.ads": "Special Offers",
     "hero.mlbb_accounts": "Mobile Legend Accounts",
-    "hero.explore_mlbb_accounts": "Explore premium ML accounts",
+    "hero.explore_mlbb_accounts": "View MLBB Accounts",
     "hero.pubg_accounts": "PUBG Accounts",
-    "hero.explore_pubg_accounts": "Explore premium PUBG accounts",
+    "hero.explore_pubg_accounts": "View PUBG Accounts",
     "hero.new_arrival_mlbb": "New Arrival MLBB",
     "hero.new_arrival_pubg": "New Arrival PUBG",
 
@@ -64,11 +64,10 @@ const translations = {
     "hero.subtitle":
       "သင့်အတွက် အကောင့်ကောင်းများကို ရှာဖွေပါ။ အဆင့်မြင့်၊ အတည်ပြုပြီး၊ ကစားရန် အဆင်သင့်။",
     "hero.ads": "အထူးကမ်းလှမ်းချက်များ",
-    "hero.mlbb_accounts": "မိုဘိုင်းလီဂျင်း အကောင့်များ",
-    "hero.explore_mlbb_accounts":
-      "မိုဘိုင်းလီဂျင်း ပရီမီယံ အကောင့်များကို ရှာဖွေပါ",
+    "hero.mlbb_accounts": "MLBB အကောင့်များ",
+    "hero.explore_mlbb_accounts": "MLBB အကောင့်ကြည့်ရန်",
     "hero.pubg_accounts": "PUBG အကောင့်များ",
-    "hero.explore_pubg_accounts": "PUBG ပရီမီယံ အကောင့်များကို ရှာဖွေပါ",
+    "hero.explore_pubg_accounts": "PUBG အကောင့်ကြည့်ရန်",
     "hero.new_arrival_mlbb": "MLBB အသစ်ရောက်ရှိမှု",
     "hero.new_arrival_pubg": "PUBG အသစ်ရောက်ရှိမှု",
 
