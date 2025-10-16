@@ -82,7 +82,7 @@ export function AccountCard({
               </div>
               <Link
                 href={`/offers/${id}`}
-                className="ml-4 px-3 py-1 rounded bg-primary text-white text-xs font-medium hover:bg-primary/80 transition"
+                className="ml-4 px-3 py-1 rounded bg-primary text-white dark:text-black text-xs font-medium hover:bg-primary/80 transition"
               >
                 View
               </Link>

@@ -12,6 +12,8 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Loading from "@/components/loading/Loading";
 import Link from "next/link";
+import MLBB from "../components/image/mlbbImage.webp";
+import PUBG from "../components/image/pubgImage.jpeg";
 
 export default function HomePage() {
   const [ads, setAds] = useState<any[]>([]);
@@ -72,50 +74,6 @@ export default function HomePage() {
         <Loading />
       ) : (
         <main>
-          {/* Ads Carousel */}
-          {/* <section className="relative">
-            <div className="embla overflow-hidden" ref={emblaRef}>
-              <div className="embla__container flex">
-                {ads.length > 0 &&
-                  ads.map((ad) => (
-                    <div
-                      key={ad.id}
-                      className="embla__slide relative flex-[0_0_100%] sm:flex-[0_0_100%] w-full aspect-[16/9] sm:aspect-[36/9]"
-                    >
-                      <Image
-                        src={ad.image_url}
-                        alt={ad.title || "Advertisement"}
-                        fill
-                        className="object-cover"
-                        priority
-                      />
-                    </div>
-                  ))}
-              </div>
-            </div>
-
-            {ads.length > 1 && (
-              <>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
-                  onClick={scrollPrev}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
-                  onClick={scrollNext}
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </>
-            )}
-          </section> */}
-
           <section className="relative">
             <div className="embla overflow-hidden" ref={emblaRef}>
               <div className="embla__container flex">
@@ -167,36 +125,33 @@ export default function HomePage() {
               </h2>
               <div className="absolute -bottom-2 left-1/2 transform -translate-x-1/2 w-16 h-1 bg-gradient-to-r from-primary to-primary/50 rounded-full"></div>
             </div>
-            <p className="text-lg text-muted-foreground mt-4 max-w-2xl mx-auto leading-relaxed">
-              {t("hero.subtitle")}
-            </p>
           </div>
           {/* Category Cards */}
-          <section className="my-12 mx-12 relative border-2 border-primary/20 rounded-xl p-6 bg-gradient-to-br from-background to-muted/50 shadow-sm">
+          <section className="my-12 mx-6 relative border-2 border-primary/20 rounded-xl p-1 pb-5 bg-gradient-to-br from-background to-muted/50 shadow-sm">
             {/* SHOP Text */}
-            <div className="absolute -top-3 left-6">
-              <span className="bg-background px-4 py-1 text-sm font-bold text-primary border-2 border-primary/20 rounded-lg shadow-sm">
-                SHOP
-              </span>
+            <div className="">
+              <span className=" text-2xl ml-2 font-bold text-primary ">SHOP</span>
             </div>
 
             {/* Rest of the content remains the same */}
-            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center px-4">
+            <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mt-7 px-4">
               {/* Mobile Legend */}
               <Link
                 href="/mobile-legend"
-                className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
+                className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-72 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
               >
                 <Image
-                  src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/22/68ca5b05a7169_com.mobile.legends.png"
+                  // src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/22/68ca5b05a7169_com.mobile.legends.png"
+                  // src="https://cdn.prod.website-files.com/65956e2711516206d2d1258f/67c597753236d97f8a97978d_cover.webp"
+                  src={MLBB}
                   alt="Mobile Legend"
                   fill
                   className="object-cover"
                   priority
                 />
                 {/* Blur overlay for text */}
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center mt-24">
+                <div className="absolute bottom-3 flex items-center justify-center">
+                  <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center ">
                     <span className="text-white/90 text-sm">
                       {t("hero.explore_mlbb_accounts")}
                     </span>
@@ -207,17 +162,19 @@ export default function HomePage() {
               {/* PUBG */}
               <Link
                 href="/pubg"
-                className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-48 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
+                className="group relative flex flex-col items-center justify-center rounded-md shadow-xl p-0 w-72 h-48 transition-all duration-300 hover:scale-105 hover:shadow-2xl overflow-hidden border border-white/10"
               >
                 <Image
-                  src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/03/68b8f42815eab_com.pubg.krmobile.png"
+                  // src="https://downloadr2.apkmirror.com/wp-content/uploads/2025/09/03/68b8f42815eab_com.pubg.krmobile.png"
+                  // src="https://www.vice.com/wp-content/uploads/sites/2/2018/12/1545803974526-40176727491_31da2b03d8_b.jpeg"
+                  src={PUBG}
                   alt="PUBG"
                   fill
                   className="object-cover"
                   priority
                 />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center mt-24">
+                <div className="absolute bottom-3 flex items-center justify-center">
+                  <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center ">
                     <span className="text-white/90 text-sm">
                       {t("hero.explore_pubg_accounts")}
                     </span>

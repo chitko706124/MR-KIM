@@ -176,12 +176,6 @@ export function Navbar() {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-6">
-            <Link
-              href="/offers"
-              className="text-sm font-medium transition-colors hover:text-primary"
-            >
-              All Offers
-            </Link>
             {navLinks.map((link) => (
               <Link
                 key={link.href}
@@ -376,74 +370,10 @@ export function Navbar() {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80">
                   <div className="flex flex-col space-y-6 mt-8">
-                    {/* Search in Mobile Menu */}
-                    <div className="space-y-2">
-                      <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                        <Input
-                          placeholder="Search accounts..."
-                          value={searchQuery}
-                          onChange={(e) => setSearchQuery(e.target.value)}
-                          className="pl-10"
-                        />
-                      </div>
-
-                      {/* Mobile Search Results */}
-                      {searchQuery && (
-                        <div className="max-h-40 overflow-y-auto border rounded-lg">
-                          {isSearching ? (
-                            <div className="p-3 text-center">
-                              <p className="text-sm text-muted-foreground">
-                                Searching...
-                              </p>
-                            </div>
-                          ) : searchResults.length > 0 ? (
-                            <>
-                              {searchResults.map((account) => (
-                                <div
-                                  key={account.id}
-                                  className="p-2 border-b last:border-b-0 hover:bg-accent cursor-pointer"
-                                  onClick={() => {
-                                    handleResultClick(account.id);
-                                  }}
-                                >
-                                  <p className="text-sm font-medium line-clamp-1">
-                                    {account.title}
-                                  </p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {account.price?.toLocaleString()} MMK
-                                  </p>
-                                </div>
-                              ))}
-                              <div
-                                className="p-2 text-center border-t hover:bg-accent cursor-pointer"
-                                onClick={handleViewAllResults}
-                              >
-                                <p className="text-sm font-medium text-primary">
-                                  View All Results
-                                </p>
-                              </div>
-                            </>
-                          ) : searchQuery ? (
-                            <div className="p-3 text-center">
-                              <p className="text-sm text-muted-foreground">
-                                No results found
-                              </p>
-                            </div>
-                          ) : null}
-                        </div>
-                      )}
-                    </div>
+                   
 
                     {/* Navigation Links */}
                     <div className="space-y-4">
-                      <Link
-                        href="/offers"
-                        className="block text-lg font-medium transition-colors hover:text-primary"
-                        onClick={() => setIsOpen(false)}
-                      >
-                        All Offers
-                      </Link>
                       {navLinks.map((link) => (
                         <Link
                           key={link.href}
