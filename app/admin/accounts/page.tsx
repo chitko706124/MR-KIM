@@ -18,13 +18,23 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { supabase } from "@/lib/supabase";
 import { COLLECTOR_LEVELS, CATEGORIES } from "@/lib/constants";
-import { CreditCard as Edit, Trash2, Save, Clock, Undo } from "lucide-react";
+import {
+  CreditCard as Edit,
+  Trash2,
+  Save,
+  Clock,
+  Undo,
+  Upload,
+  X,
+} from "lucide-react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 export default function AdminAccountsPage() {
   const router = useRouter();
   const [accounts, setAccounts] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [total, setTotal] = useState(0);
@@ -371,41 +381,60 @@ export default function AdminAccountsPage() {
     setIsEditing(false);
   };
 
-  const handleImageUpload = async (
-    e: React.ChangeEvent<HTMLInputElement>,
-    index?: number
-  ) => {
+  // Updated handleImageUpload to handle multiple files
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
-    // simple approach: use first file
-    const file = files[0];
+
+    setUploading(true);
+
     try {
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}.${fileExt}`;
-      const { error: uploadError } = await supabase.storage
-        .from("accounts-images")
-        .upload(fileName, file);
-      if (uploadError) {
-        console.error("Upload error", uploadError);
-        toast.error("Image upload failed");
-        return;
-      }
-      const { data } = supabase.storage
-        .from("accounts-images")
-        .getPublicUrl(fileName);
-      const url = data.publicUrl;
-      if (typeof index === "number") {
-        const newImages = [...accountForm.images];
-        newImages[index] = url;
-        setAccountForm((prev) => ({ ...prev, images: newImages }));
-      } else {
-        setAccountForm((prev) => ({ ...prev, images: [...prev.images, url] }));
-      }
-    } catch (err) {
-      console.error("Storage error", err);
-      toast.error("Image upload failed");
+      const uploadPromises = Array.from(files).map(async (file) => {
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+          throw new Error(`File ${file.name} is not an image`);
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+          throw new Error(`File ${file.name} is too large (max 5MB)`);
+        }
+
+        const fileExt = file.name.split(".").pop();
+        const fileName = `${Date.now()}-${Math.random()
+          .toString(36)
+          .slice(2)}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from("accounts-images")
+          .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+
+        const { data } = supabase.storage
+          .from("accounts-images")
+          .getPublicUrl(fileName);
+
+        return data.publicUrl;
+      });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+
+      // Add all new images to the form
+      setAccountForm((prev) => ({
+        ...prev,
+        images: [...prev.images, ...uploadedUrls],
+      }));
+
+      toast.success(`Successfully uploaded ${uploadedUrls.length} images`);
+
+      // Clear the file input
+      e.target.value = "";
+    } catch (error: any) {
+      console.error("Upload error:", error);
+      toast.error(error.message || "Image upload failed");
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -414,6 +443,61 @@ export default function AdminAccountsPage() {
     const newImages = [...accountForm.images];
     newImages.splice(index, 1);
     setAccountForm((prev) => ({ ...prev, images: newImages }));
+  };
+
+  // Function to replace an image
+  const replaceImage = async (
+    index: number,
+    e: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setUploading(true);
+
+    try {
+      const file = files[0];
+
+      // Validate file type and size
+      if (!file.type.startsWith("image/")) {
+        toast.error("Please select an image file");
+        return;
+      }
+
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error("Image size must be less than 5MB");
+        return;
+      }
+
+      const fileExt = file.name.split(".").pop();
+      const fileName = `${Date.now()}-${Math.random()
+        .toString(36)
+        .slice(2)}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from("accounts-images")
+        .upload(fileName, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data } = supabase.storage
+        .from("accounts-images")
+        .getPublicUrl(fileName);
+
+      const newImages = [...accountForm.images];
+      newImages[index] = data.publicUrl;
+      setAccountForm((prev) => ({ ...prev, images: newImages }));
+
+      toast.success("Image replaced successfully");
+
+      // Clear the file input
+      e.target.value = "";
+    } catch (error) {
+      console.error("Replace image error:", error);
+      toast.error("Failed to replace image");
+    } finally {
+      setUploading(false);
+    }
   };
 
   // Pagination helpers
@@ -567,30 +651,101 @@ export default function AdminAccountsPage() {
 
               <div>
                 <Label>Images</Label>
-                <Input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => handleImageUpload(e)}
-                />
-                <div className="flex flex-wrap gap-2 mt-2">
-                  {accountForm.images.map((img, idx) => (
-                    <Badge
-                      key={idx}
-                      variant="outline"
-                      className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground"
-                      onClick={() => removeImage(idx)}
+                <div className="space-y-4">
+                  {/* Multiple Image Upload */}
+                  <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
+                    <Input
+                      type="file"
+                      accept="image/*"
+                      multiple
+                      onChange={handleImageUpload}
+                      disabled={uploading}
+                      className="hidden"
+                      id="image-upload"
+                    />
+                    <Label
+                      htmlFor="image-upload"
+                      className="cursor-pointer flex flex-col items-center gap-2"
                     >
-                      Image {idx + 1} ×
-                    </Badge>
-                  ))}
+                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      <div>
+                        <p className="font-medium">
+                          {uploading
+                            ? "Uploading..."
+                            : "Click to upload multiple images"}
+                        </p>
+                        <p className="text-sm text-muted-foreground">
+                          Select multiple images at once (max 5MB each)
+                        </p>
+                      </div>
+                    </Label>
+                  </div>
+
+                  {/* Image Preview Grid */}
+                  {accountForm.images.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">
+                        Uploaded Images ({accountForm.images.length})
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+                        {accountForm.images.map((img, idx) => (
+                          <div key={idx} className="relative group">
+                            <div className="aspect-square rounded-lg overflow-hidden border">
+                              <Image
+                                src={img}
+                                alt={`Preview ${idx + 1}`}
+                                width={150}
+                                height={150}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              {/* Replace button */}
+                              <label className="cursor-pointer">
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => replaceImage(idx, e)}
+                                  disabled={uploading}
+                                  className="hidden"
+                                  id={`replace-${idx}`}
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="secondary"
+                                  className="h-6 w-6 bg-blue-500 hover:bg-blue-600 text-white"
+                                  asChild
+                                >
+                                  <span>
+                                    <Upload className="h-3 w-3" />
+                                  </span>
+                                </Button>
+                              </label>
+                              {/* Remove button */}
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="destructive"
+                                className="h-6 w-6"
+                                onClick={() => removeImage(idx)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-xs text-center mt-1 text-muted-foreground">
+                              Image {idx + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">
-                  Click on image badges to remove them
-                </p>
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={loading}>
+                <Button type="submit" disabled={loading || uploading}>
                   <Save className="mr-2 h-4 w-4" />
                   {isEditing ? "Update" : "Create"}
                 </Button>
@@ -704,6 +859,11 @@ export default function AdminAccountsPage() {
                           <Badge variant="outline" className="text-xs mt-1">
                             {account.collector_level}
                           </Badge>
+                        )}
+                        {account.images && account.images.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {account.images.length} image(s)
+                          </p>
                         )}
                       </div>
                       <div className="flex gap-2">

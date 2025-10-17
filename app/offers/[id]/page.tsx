@@ -12,6 +12,7 @@ import { supabase } from "@/lib/supabase";
 import { CATEGORIES, CONTACT_LINKS } from "@/lib/constants";
 import { MessageCircle, Phone, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/lib/language";
+import Loading from "@/components/loading/Loading";
 
 interface Account {
   id: string;
@@ -84,14 +85,7 @@ export default function OfferDetailPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <main className="container mx-auto px-4 py-8">
-          <div className="flex justify-center items-center h-64">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p>Loading account details...</p>
-            </div>
-          </div>
-        </main>
+        <Loading />
       </div>
     );
   }
@@ -193,7 +187,9 @@ export default function OfferDetailPage() {
               <CardContent className="space-y-3">
                 <Button asChild className="w-full" size="lg">
                   <a
-                    href={`tg://resolve?domain=KIM_2Thousand7`}
+                    // href={`tg://resolve?domain=KIM_2Thousand7`}
+                    // href=`https://t.me/KIM_2Thousand7?text=%20ဒီကုဒ်လေးကိုပို့ပြီးဆက်သွယ်ပေးပါဗျ!`
+                    href={`https://t.me/KIM_2Thousand7?text=${account.title}%20ဒီကုဒ်လေးကိုပို့ပြီးဆက်သွယ်ပေးပါဗျ!`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
