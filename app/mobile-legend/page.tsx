@@ -135,7 +135,9 @@ export default function MobileLegendPage() {
                 <button
                   key={pageNum}
                   className={`px-3 py-1 rounded border ${
-                    pageNum === page ? "bg-primary text-white" : ""
+                    pageNum === page
+                      ? "bg-primary dark:text-black text-white"
+                      : ""
                   }`}
                   onClick={() => setPage(pageNum)}
                 >

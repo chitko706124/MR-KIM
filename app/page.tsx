@@ -27,6 +27,21 @@ export default function HomePage() {
     fetchData();
   }, []);
 
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!emblaApi || ads.length <= 1) return;
+
+    const autoScroll = setInterval(() => {
+      if (emblaApi) {
+        emblaApi.scrollNext();
+      }
+    }, 3000); // Change slide every 5 seconds
+
+    return () => {
+      clearInterval(autoScroll);
+    };
+  }, [emblaApi, ads.length]);
+
   const fetchData = async () => {
     setLoading(true);
     try {
@@ -63,9 +78,6 @@ export default function HomePage() {
     }
   };
 
-  const scrollPrev = () => emblaApi && emblaApi.scrollPrev();
-  const scrollNext = () => emblaApi && emblaApi.scrollNext();
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
@@ -94,27 +106,6 @@ export default function HomePage() {
                   ))}
               </div>
             </div>
-
-            {ads.length > 1 && (
-              <>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute left-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
-                  onClick={scrollPrev}
-                >
-                  <ChevronLeft className="h-5 w-5" />
-                </Button>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="absolute right-4 top-1/2 -translate-y-1/2 opacity-70 hover:opacity-100 transition-opacity"
-                  onClick={scrollNext}
-                >
-                  <ChevronRight className="h-5 w-5" />
-                </Button>
-              </>
-            )}
           </section>
 
           {/* Mingalar par Text */}
@@ -130,7 +121,9 @@ export default function HomePage() {
           <section className="my-12 mx-6 relative border-2 border-primary/20 rounded-xl p-1 pb-5 bg-gradient-to-br from-background to-muted/50 shadow-sm">
             {/* SHOP Text */}
             <div className="">
-              <span className=" text-2xl ml-2 font-bold text-primary ">SHOP</span>
+              <span className=" text-2xl ml-2 font-bold text-primary ">
+                SHOP
+              </span>
             </div>
 
             {/* Rest of the content remains the same */}
@@ -152,7 +145,7 @@ export default function HomePage() {
                 {/* Blur overlay for text */}
                 <div className="absolute bottom-3 flex items-center justify-center">
                   <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center ">
-                    <span className="text-white/90 text-sm">
+                    <span className="text-white/90 text-lg">
                       {t("hero.explore_mlbb_accounts")}
                     </span>
                   </div>
@@ -175,7 +168,7 @@ export default function HomePage() {
                 />
                 <div className="absolute bottom-3 flex items-center justify-center">
                   <div className="backdrop-blur-md bg-black/40 rounded-md px-2 py-1 mx-3 text-center ">
-                    <span className="text-white/90 text-sm">
+                    <span className="text-white/90 text-lg">
                       {t("hero.explore_pubg_accounts")}
                     </span>
                   </div>

@@ -199,6 +199,54 @@ export default function AdminAccountsPage() {
     }
   };
 
+  // Function to delete account permanently immediately
+  const deleteAccountPermanently = async (id: string, images: string[]) => {
+    if (
+      !confirm(
+        "Are you sure you want to delete this account permanently? This action cannot be undone and all images will be deleted from storage."
+      )
+    )
+      return;
+
+    try {
+      // Delete images from storage first
+      if (images && images.length > 0) {
+        const fileNames = images
+          .map((url: string) => {
+            const urlParts = url.split("/");
+            return urlParts[urlParts.length - 1];
+          })
+          .filter(Boolean);
+
+        if (fileNames.length > 0) {
+          const { error: deleteStorageError } = await supabase.storage
+            .from("accounts-images")
+            .remove(fileNames);
+
+          if (deleteStorageError) {
+            console.warn(
+              `Failed to delete some images for account ${id}:`,
+              deleteStorageError
+            );
+          } else {
+            console.log(`Deleted ${fileNames.length} images for account ${id}`);
+          }
+        }
+      }
+
+      // Delete the account from database
+      const { error } = await supabase.from("accounts").delete().eq("id", id);
+
+      if (error) throw error;
+
+      toast.success("Account permanently deleted");
+      fetchData();
+    } catch (error) {
+      console.error("Error deleting account permanently:", error);
+      toast.error("Error deleting account");
+    }
+  };
+
   // Function to manually clean up expired accounts and their images
   const cleanupExpiredAccounts = async () => {
     try {
@@ -676,6 +724,20 @@ export default function AdminAccountsPage() {
                               disabled={account.is_sold}
                             >
                               <Trash2 className="h-4 w-4" />
+                            </Button>
+                            {/* Delete Now button - permanently deletes immediately */}
+                            <Button
+                              variant="destructive"
+                              size="sm"
+                              onClick={() =>
+                                deleteAccountPermanently(
+                                  account.id,
+                                  account.images
+                                )
+                              }
+                            >
+                              <Trash2 className="h-4 w-4" />
+                              Delete
                             </Button>
                           </>
                         ) : (
