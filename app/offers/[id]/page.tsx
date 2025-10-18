@@ -189,7 +189,7 @@ export default function OfferDetailPage() {
                   <a
                     // href={`tg://resolve?domain=KIM_2Thousand7`}
                     // href=`https://t.me/KIM_2Thousand7?text=%20ဒီကုဒ်လေးကိုပို့ပြီးဆက်သွယ်ပေးပါဗျ!`
-                    href={`https://t.me/KIM_2Thousand7?text=${account.title}%20ဒီကုဒ်လေးကိုပို့ပြီးဆက်သွယ်ပေးပါဗျ!`}
+                    href={`https://t.me/KIM_2Thousand7?text=${account.title}%20ဒီအကောင့်လေး%20လိုချင်လို့ပါ။!`}
                     target="_blank"
                     rel="noopener noreferrer"
                   >
