@@ -189,10 +189,35 @@ export default function AdminAdsPage() {
     setImagePreview(ad.image_url);
   };
 
-  const deleteAd = async (id: string) => {
+  const deleteAd = async (id: string, images: string[]) => {
     if (!confirm("Are you sure you want to delete this ad?")) return;
 
     try {
+      // Delete images from storage first
+      if (images) {
+        const fileNames = images
+          .map((url: string) => {
+            const urlParts = url.split("/");
+            return urlParts[urlParts.length - 1];
+          })
+          .filter(Boolean);
+
+        if (fileNames.length > 0) {
+          const { error: deleteStorageError } = await supabase.storage
+            .from("ads-images")
+            .remove(fileNames);
+
+          if (deleteStorageError) {
+            console.warn(
+              `Failed to delete some images for account ${id}:`,
+              deleteStorageError
+            );
+          } else {
+            console.log(`Deleted ${fileNames.length} images for account ${id}`);
+          }
+        }
+      }
+
       const { error } = await supabase.from("ads").delete().eq("id", id);
       if (error) throw error;
       toast.success("Ad deleted");
@@ -387,7 +412,7 @@ export default function AdminAdsPage() {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => deleteAd(ad.id)}
+                      onClick={() => deleteAd(ad.id, ad.image_url)}
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
