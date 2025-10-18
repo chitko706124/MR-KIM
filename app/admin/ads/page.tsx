@@ -194,13 +194,17 @@ export default function AdminAdsPage() {
 
     try {
       // Delete images from storage first
-      if (images) {
+      if (images && images.length > 0) {
         const fileNames = images
           .map((url: string) => {
-            const urlParts = url.split("/");
-            return urlParts[urlParts.length - 1];
+            // Extract just the file name from the full URL
+            const urlObj = new URL(url);
+            const pathParts = urlObj.pathname.split("/");
+            return pathParts[pathParts.length - 1];
           })
           .filter(Boolean);
+
+        console.log("Files to delete:", fileNames);
 
         if (fileNames.length > 0) {
           const { error: deleteStorageError } = await supabase.storage
