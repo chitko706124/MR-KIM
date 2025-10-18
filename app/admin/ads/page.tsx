@@ -81,13 +81,13 @@ export default function AdminAdsPage() {
       const fileName = `${Math.random()
         .toString(36)
         .substring(2)}_${Date.now()}.${fileExt}`;
-      const filePath = fileName; // ✅ Just the file name, no folder path
+      const filePath = fileName;
 
       console.log("Uploading to bucket: ads-images");
 
-      // Upload to Supabase Storage - use correct bucket name
+      // Upload to Supabase Storage
       const { data, error } = await supabase.storage
-        .from("ads-images") // ✅ Use your actual bucket name
+        .from("ads-images")
         .upload(filePath, file, {
           cacheControl: "3600",
           upsert: false,
@@ -98,12 +98,10 @@ export default function AdminAdsPage() {
         throw error;
       }
 
-      // Get public URL - use correct bucket name
+      // Get public URL
       const {
         data: { publicUrl },
-      } = supabase.storage
-        .from("ads-images") // ✅ Use your actual bucket name
-        .getPublicUrl(filePath);
+      } = supabase.storage.from("ads-images").getPublicUrl(filePath);
 
       console.log("Image uploaded successfully:", publicUrl);
       toast.success("Image uploaded successfully");
@@ -189,45 +187,59 @@ export default function AdminAdsPage() {
     setImagePreview(ad.image_url);
   };
 
-  const deleteAd = async (id: string, images: string[]) => {
+  const deleteAd = async (id: string, imageUrl: string) => {
     if (!confirm("Are you sure you want to delete this ad?")) return;
 
     try {
-      // Delete images from storage first
-      if (images && images.length > 0) {
-        const fileNames = images
-          .map((url: string) => {
-            // Extract just the file name from the full URL
-            const urlObj = new URL(url);
+      // Delete image from storage first if it exists
+      if (imageUrl) {
+        try {
+          // Extract file name from URL
+          let fileName: string;
+
+          try {
+            // Try using URL constructor for proper URL parsing
+            const urlObj = new URL(imageUrl);
             const pathParts = urlObj.pathname.split("/");
-            return pathParts[pathParts.length - 1];
-          })
-          .filter(Boolean);
-
-        console.log("Files to delete:", fileNames);
-
-        if (fileNames.length > 0) {
-          const { error: deleteStorageError } = await supabase.storage
-            .from("ads-images")
-            .remove(fileNames);
-
-          if (deleteStorageError) {
-            console.warn(
-              `Failed to delete some images for account ${id}:`,
-              deleteStorageError
-            );
-          } else {
-            console.log(`Deleted ${fileNames.length} images for account ${id}`);
+            fileName = pathParts[pathParts.length - 1];
+          } catch {
+            // Fallback: simple string splitting for malformed URLs
+            const urlParts = imageUrl.split("/");
+            fileName = urlParts[urlParts.length - 1];
           }
+
+          console.log("File to delete:", fileName);
+          console.log("Full image URL:", imageUrl);
+
+          if (fileName && fileName.length > 0) {
+            const { error: deleteStorageError } = await supabase.storage
+              .from("ads-images")
+              .remove([fileName]);
+
+            if (deleteStorageError) {
+              console.warn(
+                `Failed to delete image from storage for ad ${id}:`,
+                deleteStorageError
+              );
+              // Continue with database deletion even if storage deletion fails
+            } else {
+              console.log(`Deleted image from storage for ad ${id}`);
+            }
+          }
+        } catch (storageError) {
+          console.warn("Error deleting from storage:", storageError);
+          // Continue with database deletion even if storage deletion fails
         }
       }
 
+      // Delete the ad from database
       const { error } = await supabase.from("ads").delete().eq("id", id);
       if (error) throw error;
-      toast.success("Ad deleted");
+
+      toast.success("Ad deleted successfully");
       fetchData();
     } catch (err) {
-      console.error(err);
+      console.error("Error deleting ad:", err);
       toast.error("Error deleting ad");
     }
   };
