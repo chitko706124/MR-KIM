@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import { Navbar } from "@/components/ui/navbar";
@@ -13,6 +13,7 @@ import { CATEGORIES, CONTACT_LINKS } from "@/lib/constants";
 import { MessageCircle, Phone, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/lib/language";
 import Loading from "@/components/loading/Loading";
+import { BackButton } from "@/components/ui/BackButton";
 
 interface Account {
   id: string;
@@ -33,16 +34,9 @@ export default function OfferDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const { t } = useLanguage();
 
-  useEffect(() => {
-    if (!params.id) {
-      setError("No ID provided");
-      setLoading(false);
-      return;
-    }
-    fetchAccount(params.id as string);
-  }, [params.id]);
+  const accountId = params.id as string;
 
-  const fetchAccount = async (id: string) => {
+  const fetchAccount = useCallback(async (id: string) => {
     try {
       setLoading(true);
       setError(null);
@@ -73,14 +67,47 @@ export default function OfferDetailPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
-  const handleRetry = () => {
-    if (params.id) {
-      fetchAccount(params.id as string);
+  useEffect(() => {
+    if (!accountId) {
+      setError("No ID provided");
+      setLoading(false);
+      return;
     }
-  };
+    fetchAccount(accountId);
+  }, [accountId, fetchAccount]);
 
+  const handleRetry = useCallback(() => {
+    if (accountId) {
+      fetchAccount(accountId);
+    }
+  }, [accountId, fetchAccount]);
+
+  // Memoized computed values
+  const finalPrice = useMemo(() => {
+    if (!account) return 0;
+    return account.discount
+      ? account.price - (account.price * account.discount) / 100
+      : account.price;
+  }, [account]);
+
+  const categoryName = useMemo(() => {
+    if (!account) return "";
+    return (
+      CATEGORIES[account.category as keyof typeof CATEGORIES] ||
+      account.category
+    );
+  }, [account]);
+
+  const telegramUrl = useMemo(() => {
+    if (!account) return "";
+    return `https://t.me/KIM_2Thousand7?text=${encodeURIComponent(
+      account.title
+    )}%20ဒီအကောင့်လေး%20ဝယ်ချင်လို့ပါ။!`;
+  }, [account]);
+
+  // Loading state
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -90,6 +117,7 @@ export default function OfferDetailPage() {
     );
   }
 
+  // Error state
   if (error || !account) {
     return (
       <div className="min-h-screen bg-background">
@@ -118,26 +146,27 @@ export default function OfferDetailPage() {
     );
   }
 
-  const finalPrice = account.discount
-    ? account.price - (account.price * account.discount) / 100
-    : account.price;
-
   return (
     <div className="min-h-screen bg-background">
-      <Navbar />
+      <div className="relative">
+        <Navbar />
+      </div>
       <main className="container mx-auto px-4 py-8">
+        <div className="fixed top-20 right-5 z-50">
+          <BackButton>Back</BackButton>
+        </div>
+
         <div className="grid lg:grid-cols-2 gap-8">
+          {/* Image Section */}
           <div>
             <ImageCarousel images={account.images} title={account.title} />
           </div>
 
+          {/* Details Section */}
           <div className="space-y-6">
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-4">
-                <Badge variant="outline">
-                  {CATEGORIES[account.category as keyof typeof CATEGORIES] ||
-                    account.category}
-                </Badge>
+                <Badge variant="outline">{categoryName}</Badge>
                 {account.collector_level && (
                   <Badge variant="secondary">{account.collector_level}</Badge>
                 )}
@@ -148,71 +177,105 @@ export default function OfferDetailPage() {
 
               <h1 className="text-3xl font-bold mb-4">{account.title}</h1>
 
-              <div className="flex items-center gap-4 mb-6">
-                {account.discount ? (
-                  <>
-                    <span className="text-3xl font-bold text-primary">
-                      {finalPrice.toLocaleString()} MMK
-                    </span>
-                    <span className="text-xl text-muted-foreground line-through">
-                      {account.price.toLocaleString()} MMK
-                    </span>
-                    <Badge className="bg-green-500 hover:bg-green-600">
-                      -{account.discount}% OFF
-                    </Badge>
-                  </>
-                ) : (
-                  <span className="text-3xl font-bold text-primary">
-                    {account.price.toLocaleString()} MMK
-                  </span>
-                )}
-              </div>
+              <PriceDisplay
+                price={account.price}
+                discount={account.discount}
+                finalPrice={finalPrice}
+              />
             </div>
 
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("offer.description")}</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
-                  {account.description}
-                </p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>{t("contact.seller")}</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <Button asChild className="w-full" size="lg">
-                  <a
-                    // href={`tg://resolve?domain=KIM_2Thousand7`}
-                    // href=`https://t.me/KIM_2Thousand7?text=%20ဒီကုဒ်လေးကိုပို့ပြီးဆက်သွယ်ပေးပါဗျ!`
-                    href={`https://t.me/KIM_2Thousand7?text=${account.title}%20ဒီကုဒ်လေးကိုပို့ပြီးဆက်သွယ်ပေးပါဗျ!`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <MessageCircle className="mr-2 h-5 w-5" />
-                    {t("contact.telegram")}
-                  </a>
-                </Button>
-
-                <Button asChild variant="outline" className="w-full" size="lg">
-                  <a
-                    href={CONTACT_LINKS.viber}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    <Phone className="mr-2 h-5 w-5" />
-                    {t("contact.viber")}
-                  </a>
-                </Button>
-              </CardContent>
-            </Card>
+            <DescriptionCard description={account.description} />
+            <ContactCard telegramUrl={telegramUrl} />
           </div>
         </div>
       </main>
     </div>
+  );
+}
+
+// Extracted components for better performance and reusability
+interface PriceDisplayProps {
+  price: number;
+  discount?: number;
+  finalPrice: number;
+}
+
+function PriceDisplay({ price, discount, finalPrice }: PriceDisplayProps) {
+  return (
+    <div className="flex items-center gap-4 mb-6">
+      {discount ? (
+        <>
+          <span className="text-3xl font-bold text-primary">
+            {finalPrice.toLocaleString()} MMK
+          </span>
+          <span className="text-xl text-muted-foreground line-through">
+            {price.toLocaleString()} MMK
+          </span>
+          <Badge className="bg-green-500 hover:bg-green-600">
+            -{discount}% OFF
+          </Badge>
+        </>
+      ) : (
+        <span className="text-3xl font-bold text-primary">
+          {price.toLocaleString()} MMK
+        </span>
+      )}
+    </div>
+  );
+}
+
+interface DescriptionCardProps {
+  description: string;
+}
+
+function DescriptionCard({ description }: DescriptionCardProps) {
+  const { t } = useLanguage();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("offer.description")}</CardTitle>
+      </CardHeader>
+      <CardContent>
+        <p className="text-muted-foreground leading-relaxed whitespace-pre-line">
+          {description}
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
+interface ContactCardProps {
+  telegramUrl: string;
+}
+
+function ContactCard({ telegramUrl }: ContactCardProps) {
+  const { t } = useLanguage();
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>{t("contact.seller")}</CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Button asChild className="w-full" size="lg">
+          <a href={telegramUrl} target="_blank" rel="noopener noreferrer">
+            <MessageCircle className="mr-2 h-5 w-5" />
+            {t("contact.telegram")}
+          </a>
+        </Button>
+
+        <Button asChild variant="outline" className="w-full" size="lg">
+          <a
+            href={CONTACT_LINKS.viber}
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Phone className="mr-2 h-5 w-5" />
+            {t("contact.viber")}
+          </a>
+        </Button>
+      </CardContent>
+    </Card>
   );
 }
