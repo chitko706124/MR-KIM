@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/ui/navbar";
 import { AccountCard } from "@/components/ui/account-card";
 import { supabase } from "@/lib/supabase";
+import Footer from "@/components/ui/footer";
 
 export default function PubgPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -124,6 +125,8 @@ export default function PubgPage() {
           </div>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }

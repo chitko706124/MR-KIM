@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/select";
 import { supabase } from "@/lib/supabase";
 import { COLLECTOR_LEVELS } from "@/lib/constants";
+import Footer from "@/components/ui/footer";
+import Loading from "@/components/loading/Loading";
 
 export default function MobileLegendPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -67,9 +69,7 @@ export default function MobileLegendPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading...</div>
-        </div>
+        <Loading />
       </div>
     );
   }
@@ -166,6 +166,8 @@ export default function MobileLegendPage() {
           </div>
         )}
       </main>
+
+      <Footer />
     </div>
   );
 }

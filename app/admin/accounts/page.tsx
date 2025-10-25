@@ -261,7 +261,7 @@ export default function AdminAccountsPage() {
   const cleanupExpiredAccounts = async () => {
     try {
       const twentyFourHoursAgo = new Date(
-        Date.now() - 2 * 60 * 1000
+        Date.now() - 24 * 60 * 60 * 1000
       ).toISOString();
 
       const { data: expiredAccounts, error: fetchError } = await supabase

@@ -14,6 +14,7 @@ import { MessageCircle, Phone, ArrowLeft, RefreshCw } from "lucide-react";
 import { useLanguage } from "@/lib/language";
 import Loading from "@/components/loading/Loading";
 import { BackButton } from "@/components/ui/BackButton";
+import Footer from "@/components/ui/footer";
 
 interface Account {
   id: string;
@@ -189,6 +190,8 @@ export default function OfferDetailPage() {
           </div>
         </div>
       </main>
+
+      <Footer />
     </div>
   );
 }

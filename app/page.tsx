@@ -14,6 +14,7 @@ import Loading from "@/components/loading/Loading";
 import Link from "next/link";
 import MLBB from "../components/image/mlbbImage.webp";
 import PUBG from "../components/image/pubgImage.jpeg";
+import Footer from "@/components/ui/footer";
 
 export default function HomePage() {
   const [ads, setAds] = useState<any[]>([]);
@@ -216,6 +217,8 @@ export default function HomePage() {
           )}
         </main>
       )}
+
+      <Footer />
     </div>
   );
 }
