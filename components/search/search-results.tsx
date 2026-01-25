@@ -30,7 +30,7 @@ export default function SearchResults({
       <div className="text-center py-12 space-y-4">
         <Search className="h-16 w-16 text-muted-foreground mx-auto" />
         <h2 className="text-2xl font-bold">No results found</h2>
-        <p>No accounts match "{query}"</p>
+        <p>No accounts match &quot;{query}&quot;</p>
         <Button asChild>
           <Link href="/">Back to Home</Link>
         </Button>
@@ -42,7 +42,7 @@ export default function SearchResults({
     <>
       <div className="mb-8 flex justify-between items-center">
         <div>
-          <h1 className="text-3xl font-bold">Results for "{query}"</h1>
+          <h1 className="text-3xl font-bold">Results for &quot;{query}&quot;</h1>
           <p className="text-muted-foreground">
             Found {results.length} account(s)
           </p>
