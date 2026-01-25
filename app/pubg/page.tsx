@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Navbar } from "@/components/ui/navbar";
 import { AccountCard } from "@/components/ui/account-card";
 import { supabase } from "@/lib/supabase";
@@ -14,35 +14,37 @@ export default function PubgPage() {
   const [pageSize] = useState<number>(12);
   const [total, setTotal] = useState<number>(0);
 
-  useEffect(() => {
-    fetchAccounts();
-  }, []);
 
-  const fetchAccounts = async (pageNumber = 1) => {
-    setLoading(true);
-    try {
-      const from = (pageNumber - 1) * pageSize;
-      const to = from + pageSize - 1;
 
-      const { data, error, count } = await supabase
-        .from("accounts")
-        .select(
-          "id, title, price, cover_image, category,  is_sold",
-          { count: "planned" }
-        )
-        .eq("category", "pubg")
-        .order("created_at", { ascending: false })
-        .range(from, to);
+const fetchAccounts = useCallback(async (pageNumber = 1) => {
+  setLoading(true);
+  try {
+    const from = (pageNumber - 1) * pageSize;
+    const to = from + pageSize - 1;
 
-      if (error) throw error;
-      setAccounts(data || []);
-      setTotal(count ?? 0);
-    } catch (error) {
-      console.error("Error fetching accounts:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
+    const { data, error, count } = await supabase
+      .from("accounts")
+      .select(
+        "id, title, price, cover_image, category, is_sold",
+        { count: "exact" }  // Changed from "planned" to "exact"
+      )
+      .eq("category", "pubg")
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (error) throw error;
+    setAccounts(data || []);
+    setTotal(count ?? 0);
+  } catch (error) {
+    console.error("Error fetching accounts:", error);
+  } finally {
+    setLoading(false);
+  }
+}, [pageSize]); // Add dependencies that fetchAccounts uses
+
+useEffect(() => {
+  fetchAccounts();
+}, [fetchAccounts]); // Now fetchAccounts is stable
 
   if (loading) {
     return (
