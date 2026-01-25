@@ -256,7 +256,7 @@ export function Navbar() {
                       ) : searchQuery && searchResults.length === 0 ? (
                         <div className="text-center py-4">
                           <p className="text-sm text-muted-foreground">
-                            No accounts found matching "{searchQuery}"
+                            No accounts found matching &quot;{searchQuery}&quot;
                           </p>
                         </div>
                       ) : searchResults.length > 0 ? (
