@@ -5,6 +5,7 @@ import { Navbar } from "@/components/ui/navbar";
 import { AccountCard } from "@/components/ui/account-card";
 import { supabase } from "@/lib/supabase";
 import Footer from "@/components/ui/footer";
+import Loading from "@/components/loading/Loading";
 
 export default function PubgPage() {
   const [accounts, setAccounts] = useState<any[]>([]);
@@ -25,7 +26,10 @@ export default function PubgPage() {
 
       const { data, error, count } = await supabase
         .from("accounts")
-        .select("*", { count: "exact" })
+        .select(
+          "id, title, price, cover_image, category,  is_sold",
+          { count: "planned" }
+        )
         .eq("category", "pubg")
         .order("created_at", { ascending: false })
         .range(from, to);
@@ -44,9 +48,7 @@ export default function PubgPage() {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">Loading...</div>
-        </div>
+       <Loading/>
       </div>
     );
   }
@@ -69,10 +71,8 @@ export default function PubgPage() {
               id={account.id}
               title={account.title}
               price={account.price}
-              discount={account.discount}
-              images={account.images}
-              category={account.category}
-              collectorLevel={account.collector_level}
+              cover_image={account.cover_image}
+              category={account.category}              
               isSold={account.is_sold}
             />
           ))}

@@ -10,8 +10,7 @@ interface AccountCardProps {
   id: string;
   title: string;
   price: number;
-  discount?: number;
-  images: string[];
+  cover_image: string;
   category: string;
   collectorLevel?: string;
   isSold: boolean;
@@ -21,14 +20,13 @@ export function AccountCard({
   id,
   title,
   price,
-  discount,
-  images,
+  cover_image,
   category,
   collectorLevel,
   isSold,
 }: AccountCardProps) {
-  const finalPrice = discount ? price - (price * discount) / 100 : price;
-  const thumbnailImage = images[0];
+ 
+  const thumbnailImage = cover_image;
 
   return (
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
@@ -46,11 +44,7 @@ export function AccountCard({
                 Sold Out
               </Badge>
             )}
-            {discount && !isSold && (
-              <Badge className="absolute top-2 left-2 bg-green-500 hover:bg-green-600">
-                -{discount}%
-              </Badge>
-            )}
+          
           </div>
           <CardContent className="p-4">
             <h3 className="font-semibold text-sm mb-2 line-clamp-2 min-h-[2.5rem]">
@@ -65,20 +59,11 @@ export function AccountCard({
 
             <div className="flex items-center justify-between">
               <div className="flex flex-col">
-                {discount ? (
-                  <>
-                    <span className="text-lg font-bold text-primary">
-                      {Math.floor(finalPrice).toLocaleString()} MMK
-                    </span>
-                    <span className="text-sm text-muted-foreground line-through">
-                      {Math.floor(price).toLocaleString()} MMK
-                    </span>
-                  </>
-                ) : (
+              
                   <span className="text-lg font-bold text-primary">
                     {Math.floor(price).toLocaleString()} MMK
                   </span>
-                )}
+              
               </div>
               <Link
                 href={`/offers/${id}`}

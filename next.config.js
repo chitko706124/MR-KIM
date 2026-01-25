@@ -1,10 +1,10 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {
-  
-  eslint: {
-    ignoreDuringBuilds: true,
+module.exports = {
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.supabase.co",
+      },
+    ],
   },
-  images: { unoptimized: true },
 };
-
-module.exports = nextConfig;

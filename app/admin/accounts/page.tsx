@@ -75,7 +75,9 @@ export default function AdminAccountsPage() {
 
         let query = supabase
           .from("accounts")
-          .select("*", { count: "exact" })
+          .select(
+            "id, title, price, category, collector_level, is_sold, sold_at, deleted_at", { count: "planned" }
+          )
           .order("created_at", { ascending: false })
           .range(from, to);
 
@@ -608,10 +610,10 @@ export default function AdminAccountsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="discount">Discount (%)</Label>
+                  {/* <Label htmlFor="discount">Discount (%)</Label> */}
                   <Input
                     id="discount"
-                    type="number"
+                    type="hidden"
                     max="100"
                     value={accountForm.discount}
                     onChange={(e) =>
@@ -853,18 +855,14 @@ export default function AdminAccountsPage() {
                             ]
                           }{" "}
                           • ${account.price}
-                          {account.discount && ` (-${account.discount}%)`}
+                        
                         </p>
                         {account.collector_level && (
                           <Badge variant="outline" className="text-xs mt-1">
                             {account.collector_level}
                           </Badge>
                         )}
-                        {account.images && account.images.length > 0 && (
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {account.images.length} image(s)
-                          </p>
-                        )}
+                
                       </div>
                       <div className="flex gap-2">
                         {!isMarkedForDeletion ? (
