@@ -64,6 +64,8 @@ export default function SearchResults({
                   src={account.cover_image || "/placeholder-image.jpg"}
                   alt={account.title}
                   fill
+  unoptimized
+  loading="lazy"
                   className="object-cover"
                 />
                 <div className="absolute top-2 left-2">

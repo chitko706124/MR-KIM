@@ -698,6 +698,9 @@ export default function AdminAccountsPage() {
                                 alt={`Preview ${idx + 1}`}
                                 width={150}
                                 height={150}
+                                 
+  unoptimized
+  loading="lazy"
                                 className="w-full h-full object-cover"
                               />
                             </div>

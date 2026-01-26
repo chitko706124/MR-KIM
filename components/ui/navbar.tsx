@@ -168,6 +168,8 @@ export function Navbar() {
               height={40}
               className="h-8 w-8 object-contain"
               priority
+              
+  unoptimized
             />
             <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               MR.KIM
@@ -274,7 +276,9 @@ export function Navbar() {
                                       <Image
                                         src={account.images[0]}
                                         alt={account.title}
-                                        fill
+                                       fill
+  unoptimized
+  loading="lazy"
                                         className="object-cover"
                                       />
                                     </div>

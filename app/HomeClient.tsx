@@ -42,7 +42,9 @@ export default function HomeClient({ ads, mlAccounts, pubgAccounts }: any) {
             <Image
               src={ad.image_url}
               alt={ad.title}
-              fill
+               fill
+  unoptimized
+  loading="lazy"
               className="object-cover "
             
             />
@@ -84,6 +86,7 @@ export default function HomeClient({ ads, mlAccounts, pubgAccounts }: any) {
                   src={MLBB}
                   alt="Mobile Legend"
                   fill
+  unoptimized
                   className="object-cover"
                   priority
                 />
@@ -108,6 +111,7 @@ export default function HomeClient({ ads, mlAccounts, pubgAccounts }: any) {
                   src={PUBG}
                   alt="PUBG"
                   fill
+  unoptimized
                   className="object-cover"
                   priority
                 />

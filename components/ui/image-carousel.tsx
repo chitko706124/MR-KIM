@@ -108,7 +108,8 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
           <Image
             src={images[currentIndex]}
             alt={`${title} - Image ${currentIndex + 1}`}
-            fill
+             fill
+  unoptimized
             className="object-cover"
             onClick={() => openFullscreen(currentIndex)}
             priority
@@ -181,7 +182,9 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
                       <Image
                         src={image}
                         alt={`Thumbnail ${actualIndex + 1}`}
-                        fill
+                     
+  unoptimized
+  loading="lazy"
                         className="object-cover"
                         sizes={isMobile ? "64px" : "80px"}
                       />
@@ -245,6 +248,7 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
                   src={images[fullscreenIndex]}
                   alt={`${title} - Fullscreen ${fullscreenIndex + 1}`}
                   fill
+  unoptimized
                   className="object-contain"
                   priority
                 />

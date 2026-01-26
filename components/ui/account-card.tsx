@@ -36,7 +36,9 @@ export function AccountCard({
             <Image
               src={thumbnailImage}
               alt={title}
-              fill
+             fill
+  unoptimized
+  loading="lazy"
               className="object-cover transition-transform duration-300 group-hover:scale-105"
             />
             {isSold && (

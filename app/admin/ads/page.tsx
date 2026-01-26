@@ -308,7 +308,9 @@ export default function AdminAdsPage() {
                         <Image
                           src={imagePreview}
                           alt="Preview"
-                          fill
+                       fill
+  unoptimized
+  loading="lazy"
                           className="object-cover"
                         />
                       </div>
@@ -403,7 +405,9 @@ export default function AdminAdsPage() {
                       <Image
                         src={ad.image_url}
                         alt={ad.title || "Ad image"}
-                        fill
+                     fill
+  unoptimized
+  loading="lazy"
                         className="object-cover"
                       />
                     </div>
