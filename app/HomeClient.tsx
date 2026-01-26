@@ -16,7 +16,7 @@ export default function HomeClient({ ads, mlAccounts, pubgAccounts }: any) {
   return (
     <main>
       {/* Ads */}
-      <section className="relative">
+      {/* <section className="relative">
         <div className="embla overflow-hidden" ref={emblaRef}>
           <div className="flex">
             {ads.map((ad: any) => (
@@ -31,7 +31,27 @@ export default function HomeClient({ ads, mlAccounts, pubgAccounts }: any) {
             ))}
           </div>
         </div>
-      </section>
+      </section> */}
+      <section className="relative">
+  <div className="embla overflow-hidden" ref={emblaRef}>
+    <div className="flex">
+      {ads.map((ad: any) => (
+        <div key={ad.id} className="relative flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.333%] min-w-0 ">
+          {/* Mobile: Full width (100%), Tablet: Half width (50%), Desktop: One-third (33.333%) */}
+          <div className="relative w-full aspect-[16/9]">
+            <Image
+              src={ad.image_url}
+              alt={ad.title}
+              fill
+              className="object-cover "
+            
+            />
+          </div>
+        </div>
+      ))}
+    </div>
+  </div>
+</section>
 
              {/* Mingalar par Text */}
           <div className="text-center my-12">
