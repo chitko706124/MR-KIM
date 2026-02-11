@@ -46,13 +46,16 @@ export default async function HomePage() {
 
   return (
     <>
-      <Navbar />
+    <div className="flex items-center justify-center h-screen text-2xl font-bold">
+      website under maintainance, please check back later
+    </div>
+      {/* <Navbar />
       <HomeClient
         ads={ads ?? []}
         mlAccounts={ml ?? []}
         pubgAccounts={pubg ?? []}
       />
-      <Footer />
+      <Footer /> */}
     </>
   );
 }
