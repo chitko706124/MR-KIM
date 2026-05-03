@@ -7,7 +7,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 
@@ -65,16 +64,21 @@ export default function AdminProfilePage() {
         </Button>
       </div>
     ),
-    []
+    [],
   );
 
   useEffect(() => {
     const check = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = (data as any)?.session;
-      if (!session) return router.replace("/admin/login");
+      // const response = await fetch("/api/admin/session");
+      // if (!response.ok) return router.replace("/admin/login");
+      if (!localStorage.getItem("auth_token")) {
+        router.replace("/admin/login");
+      }
     };
     check();
+    // if (!localStorage.getItem('authToken')) {
+    //   router.replace("/admin/login");
+    // }
   }, [router]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -84,6 +88,62 @@ export default function AdminProfilePage() {
       [name]: value,
     }));
   };
+
+  // const handleUpdatePassword = async (e: React.FormEvent) => {
+  //   e.preventDefault();
+  //   setLoading(true);
+
+  //   try {
+  //     // Validate form
+  //     if (
+  //       !formData.currentPassword ||
+  //       !formData.newPassword ||
+  //       !formData.confirmPassword
+  //     ) {
+  //       toast.error("Please fill in all fields");
+  //       return;
+  //     }
+
+  //     if (formData.newPassword !== formData.confirmPassword) {
+  //       toast.error("New passwords do not match");
+  //       return;
+  //     }
+
+  //     if (formData.newPassword.length < 6) {
+  //       toast.error("Password must be at least 6 characters long");
+  //       return;
+  //     }
+
+  //     const response = await fetch(process.env.NEXT_PUBLIC_API_URL + "/update-password", {
+  //       method: "POST",
+  //       headers: { "Content-Type": "application/json" , Authorization: `Bearer ${localStorage.getItem("auth_token")}`},
+  //       body: JSON.stringify({
+  //         currentPassword: formData.currentPassword,
+  //         newPassword: formData.newPassword,
+  //       }),
+  //     });
+  //     const payload = await response.json();
+  //     if (!response.ok) {
+  //       toast.error(payload.error || "Failed to update password");
+  //       return;
+  //     }
+
+  //     // Success
+  //     toast.success("Password updated successfully!");
+
+  //     // Reset form
+  //     setFormData({
+  //       currentPassword: "",
+  //       newPassword: "",
+  //       confirmPassword: "",
+  //     });
+  //   } catch (error) {
+  //     console.error("Unexpected error:", error);
+  //     toast.error("An unexpected error occurred");
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
 
   const handleUpdatePassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -110,24 +170,43 @@ export default function AdminProfilePage() {
         return;
       }
 
-      // Update password using Supabase
-      const { error } = await supabase.auth.updateUser({
-        password: formData.newPassword,
-      });
+      // Use the correct field names that backend expects
+      const response = await fetch(
+        process.env.NEXT_PUBLIC_API_URL + "/update-password",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+          },
+          body: JSON.stringify({
+            current_password: formData.currentPassword, // Changed to current_password
+            new_password: formData.newPassword, // Changed to new_password
+            new_password_confirmation: formData.confirmPassword, // Added confirmation field
+          }),
+        },
+      );
 
-      if (error) {
-        console.error("Password update error:", error);
+      const data = await response.json();
 
-        if (error.message.includes("password")) {
-          toast.error("Invalid current password");
-        } else {
-          toast.error("Failed to update password: " + error.message);
-        }
+      // Check response status
+      if (!response.ok) {
+        const errorMessage =
+          data.message || data.errors
+            ? Object.values(data.errors).flat().join(", ")
+            : "Failed to update password";
+        toast.error(errorMessage);
+        return;
+      }
+
+      // Check for success status
+      if (data.status !== "success") {
+        toast.error(data.message || "Failed to update password");
         return;
       }
 
       // Success
-      toast.success("Password updated successfully!");
+      toast.success(data.message || "Password updated successfully!");
 
       // Reset form
       setFormData({
@@ -142,7 +221,6 @@ export default function AdminProfilePage() {
       setLoading(false);
     }
   };
-
   return (
     <div className="min-h-screen bg-background">
       <Navbar />

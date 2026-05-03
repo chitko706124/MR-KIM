@@ -7,7 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { supabase } from "@/lib/supabase";
 import { Save, Edit, Trash2, Upload, X } from "lucide-react";
 import { toast } from "sonner";
 import Image from "next/image";
@@ -18,34 +17,45 @@ export default function AdminAdsPage() {
   const [adForm, setAdForm] = useState({
     id: "",
     title: "",
-    image_url: "",
     link: "",
-    order_index: "",
+    order_index: "0",
   });
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string>("");
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
   useEffect(() => {
-    const check = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = (data as any)?.session;
-      if (!session) return router.replace("/admin/login");
-      fetchData();
+    const checkAuth = async () => {
+      if (!localStorage.getItem('auth_token')) {
+        router.replace("/admin/login");
+      }
     };
-    check();
+    checkAuth();
+    fetchData();
   }, [router]);
 
   const fetchData = async () => {
     try {
-      const { data } = await supabase
-        .from("ads")
-        .select("*")
-        .order("order_index");
-      setAds(data || []);
-    } catch (err) {
+      const response = await fetch(`${API_URL}/ads`, {
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("auth_token")}`
+        }
+      });
+      
+      if (!response.ok) throw new Error("Failed to fetch ads");
+      
+      const data = await response.json();
+      
+      if (data.status === "success") {
+        setAds(data.data || []);
+      } else {
+        throw new Error(data.message || "Failed to fetch ads");
+      }
+    } catch (err: any) {
       console.error("Error fetching ads", err);
+      toast.error(err.message || "Error fetching ads");
     }
   };
 
@@ -72,106 +82,83 @@ export default function AdminAdsPage() {
     }
   };
 
-  const uploadImage = async (file: File): Promise<string> => {
-    try {
-      setUploading(true);
-
-      // Generate unique file name
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Math.random()
-        .toString(36)
-        .substring(2)}_${Date.now()}.${fileExt}`;
-      const filePath = fileName;
-
-      console.log("Uploading to bucket: ads-images");
-
-      // Upload to Supabase Storage
-      const { data, error } = await supabase.storage
-        .from("ads-images")
-        .upload(filePath, file, {
-          cacheControl: "3600",
-          upsert: false,
-        });
-
-      if (error) {
-        console.error("Supabase upload error:", error);
-        throw error;
-      }
-
-      // Get public URL
-      const {
-        data: { publicUrl },
-      } = supabase.storage.from("ads-images").getPublicUrl(filePath);
-
-      console.log("Image uploaded successfully:", publicUrl);
-      toast.success("Image uploaded successfully");
-      return publicUrl;
-    } catch (error) {
-      console.error("Error uploading image:", error);
-      toast.error("Failed to upload image. Please try again.");
-      throw error;
-    } finally {
-      setUploading(false);
-    }
-  };
-
   const handleAdSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // Validate required fields
-    if (!adForm.order_index) {
-      toast.error("Please enter an order index");
-      return;
-    }
-
-    if (!selectedFile && !adForm.image_url) {
-      toast.error("Please select an image");
-      return;
-    }
-
     setLoading(true);
 
     try {
-      let imageUrl = adForm.image_url;
-
-      // Upload new image if selected
-      if (selectedFile) {
-        imageUrl = await uploadImage(selectedFile);
+      // Validate required fields
+      if (!selectedFile && !adForm.id) {
+        toast.error("Please select an image");
+        return;
       }
 
-      const adData = {
-        title: adForm.title,
-        image_url: imageUrl,
-        link: adForm.link || null,
-        order_index: parseInt(adForm.order_index),
-        is_active: true,
-      };
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        router.replace("/admin/login");
+        return;
+      }
+
+      const formData = new FormData();
+      
+      // Append text fields
+      if (adForm.title) formData.append('title', adForm.title);
+      if (adForm.link) formData.append('link', adForm.link);
+      formData.append('order_index', adForm.order_index || '0');
+      
+      // Append image file if selected
+      if (selectedFile) {
+        formData.append('image', selectedFile);
+      }
+
+      let url = `${API_URL}/ads`;
+      let method = "POST";
 
       if (adForm.id) {
-        const { error } = await supabase
-          .from("ads")
-          .update(adData)
-          .eq("id", adForm.id);
-        if (error) throw error;
-        toast.success("Ad updated");
-      } else {
-        const { error } = await supabase.from("ads").insert(adData);
-        if (error) throw error;
-        toast.success("Ad created");
+        // Update existing ad
+        url = `${API_URL}/ads/${adForm.id}`;
+        method = "PUT";
+        
+        // For updates, we need to send _method=PUT if using Laravel's method spoofing
+        // Or use PATCH depending on your backend
+        // Since your route uses PUT, we'll use PUT
       }
 
+      const response = await fetch(url, {
+        method,
+        headers: {
+          "Authorization": `Bearer ${token}`,
+          // Don't set Content-Type for FormData, browser will set it with boundary
+        },
+        body: formData,
+      });
+
+      const data = await response.json();
+      
+      if (!response.ok || data.status !== "success") {
+        const errorMsg = data.errors 
+          ? Object.values(data.errors).flat().join(', ')
+          : data.message || `Failed to ${adForm.id ? 'update' : 'create'} ad`;
+        throw new Error(errorMsg);
+      }
+
+      toast.success(data.message || `Ad ${adForm.id ? 'updated' : 'created'} successfully`);
+      
       // Reset form
       resetForm();
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error saving ad", err);
-      toast.error("Error saving ad");
+      toast.error(err.message || "Error saving ad");
     } finally {
       setLoading(false);
     }
   };
 
   const removeSelectedFile = () => {
+    if (selectedFile && imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
     setSelectedFile(null);
     setImagePreview("");
   };
@@ -180,67 +167,41 @@ export default function AdminAdsPage() {
     setAdForm({
       id: ad.id,
       title: ad.title || "",
-      image_url: ad.image_url,
       link: ad.link || "",
-      order_index: ad.order_index.toString(),
+      order_index: ad.order_index?.toString() || "0",
     });
     setImagePreview(ad.image_url);
+    setSelectedFile(null); // Clear any selected file when editing
   };
 
-  const deleteAd = async (id: string, imageUrl: string) => {
+  const deleteAd = async (id: string) => {
     if (!confirm("Are you sure you want to delete this ad?")) return;
 
     try {
-      // Delete image from storage first if it exists
-      if (imageUrl) {
-        try {
-          // Extract file name from URL
-          let fileName: string;
-
-          try {
-            // Try using URL constructor for proper URL parsing
-            const urlObj = new URL(imageUrl);
-            const pathParts = urlObj.pathname.split("/");
-            fileName = pathParts[pathParts.length - 1];
-          } catch {
-            // Fallback: simple string splitting for malformed URLs
-            const urlParts = imageUrl.split("/");
-            fileName = urlParts[urlParts.length - 1];
-          }
-
-          console.log("File to delete:", fileName);
-          console.log("Full image URL:", imageUrl);
-
-          if (fileName && fileName.length > 0) {
-            const { error: deleteStorageError } = await supabase.storage
-              .from("ads-images")
-              .remove([fileName]);
-
-            if (deleteStorageError) {
-              console.warn(
-                `Failed to delete image from storage for ad ${id}:`,
-                deleteStorageError
-              );
-              // Continue with database deletion even if storage deletion fails
-            } else {
-              console.log(`Deleted image from storage for ad ${id}`);
-            }
-          }
-        } catch (storageError) {
-          console.warn("Error deleting from storage:", storageError);
-          // Continue with database deletion even if storage deletion fails
-        }
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        router.replace("/admin/login");
+        return;
       }
 
-      // Delete the ad from database
-      const { error } = await supabase.from("ads").delete().eq("id", id);
-      if (error) throw error;
+      const response = await fetch(`${API_URL}/ads/${id}`, {
+        method: "DELETE",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      });
 
-      toast.success("Ad deleted successfully");
+      const data = await response.json();
+      
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Failed to delete ad");
+      }
+
+      toast.success(data.message || "Ad deleted successfully");
       fetchData();
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error deleting ad:", err);
-      toast.error("Error deleting ad");
+      toast.error(err.message || "Error deleting ad");
     }
   };
 
@@ -248,13 +209,27 @@ export default function AdminAdsPage() {
     setAdForm({
       id: "",
       title: "",
-      image_url: "",
       link: "",
-      order_index: "",
+      order_index: "0",
     });
+    
+    // Clean up object URL if it exists
+    if (imagePreview.startsWith('blob:')) {
+      URL.revokeObjectURL(imagePreview);
+    }
+    
     setSelectedFile(null);
     setImagePreview("");
   };
+
+  // Clean up object URLs on component unmount
+  useEffect(() => {
+    return () => {
+      if (imagePreview.startsWith('blob:')) {
+        URL.revokeObjectURL(imagePreview);
+      }
+    };
+  }, [imagePreview]);
 
   return (
     <div className="min-h-screen bg-background">
@@ -281,7 +256,7 @@ export default function AdminAdsPage() {
                   />
                 </div>
                 <div>
-                  <Label htmlFor="order">Order Index *</Label>
+                  <Label htmlFor="order">Order Index</Label>
                   <Input
                     id="order"
                     type="number"
@@ -293,14 +268,32 @@ export default function AdminAdsPage() {
                       }))
                     }
                     placeholder="Display order"
-                    required
+                    min="0"
                   />
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Lower numbers appear first
+                  </p>
                 </div>
+              </div>
+
+              <div>
+                <Label htmlFor="link">Link (Optional)</Label>
+                <Input
+                  id="link"
+                  type="url"
+                  value={adForm.link}
+                  onChange={(e) =>
+                    setAdForm((prev) => ({ ...prev, link: e.target.value }))
+                  }
+                  placeholder="https://example.com"
+                />
               </div>
 
               {/* Image Upload Section */}
               <div>
-                <Label htmlFor="image-upload">Ad Image *</Label>
+                <Label htmlFor="image-upload">
+                  Ad Image {!adForm.id ? "*" : ""}
+                </Label>
                 <div className="mt-2">
                   {imagePreview ? (
                     <div className="relative inline-block">
@@ -308,10 +301,9 @@ export default function AdminAdsPage() {
                         <Image
                           src={imagePreview}
                           alt="Preview"
-                       fill
-  unoptimized
-  loading="lazy"
+                          fill
                           className="object-cover"
+                          unoptimized={imagePreview.startsWith('blob:')}
                         />
                       </div>
                       <Button
@@ -344,6 +336,11 @@ export default function AdminAdsPage() {
                       <p className="text-xs text-muted-foreground mt-1">
                         PNG, JPG, GIF up to 5MB
                       </p>
+                      {!adForm.id && (
+                        <p className="text-xs text-red-500 mt-1">
+                          * Required for new ads
+                        </p>
+                      )}
                       {uploading && (
                         <p className="text-xs text-blue-500 mt-1">
                           Uploading...
@@ -352,18 +349,6 @@ export default function AdminAdsPage() {
                     </div>
                   )}
                 </div>
-              </div>
-
-              <div>
-                <Label htmlFor="link">Link (Optional)</Label>
-                <Input
-                  id="link"
-                  value={adForm.link}
-                  onChange={(e) =>
-                    setAdForm((prev) => ({ ...prev, link: e.target.value }))
-                  }
-                  placeholder="https://example.com"
-                />
               </div>
 
               <div className="flex gap-2">
@@ -392,54 +377,77 @@ export default function AdminAdsPage() {
         <Card className="mt-6">
           <CardHeader>
             <CardTitle>Ads List</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Total ads: {ads.length}
+            </p>
           </CardHeader>
           <CardContent>
-            <div className="space-y-4">
-              {ads.map((ad) => (
-                <div
-                  key={ad.id}
-                  className="flex items-center justify-between p-4 border rounded-lg"
-                >
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-12 relative rounded overflow-hidden">
-                      <Image
-                        src={ad.image_url}
-                        alt={ad.title || "Ad image"}
-                     fill
-  unoptimized
-  loading="lazy"
-                        className="object-cover"
-                      />
+            {ads.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">
+                No ads found. Create your first ad above.
+              </p>
+            ) : (
+              <div className="space-y-4">
+                {ads.map((ad) => (
+                  <div
+                    key={ad.id}
+                    className="flex items-center justify-between p-4 border rounded-lg hover:bg-muted/50"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-16 h-12 relative rounded overflow-hidden flex-shrink-0">
+                        <Image
+                          src={ad.image_url}
+                          alt={ad.title || "Ad image"}
+                          fill
+                          className="object-cover"
+                        />
+                      </div>
+                      <div>
+                        <h3 className="font-semibold">
+                          {ad.title || "Untitled Ad"}
+                        </h3>
+                        <p className="text-sm text-muted-foreground">
+                          Order: {ad.order_index} • 
+                          {ad.link ? (
+                            <a 
+                              href={ad.link} 
+                              target="_blank" 
+                              rel="noopener noreferrer"
+                              className="text-blue-500 hover:underline ml-1"
+                            >
+                              Has link
+                            </a>
+                          ) : (
+                            " No link"
+                          )}
+                          {!ad.is_active && (
+                            <span className="ml-2 text-amber-500">
+                              • Inactive
+                            </span>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h3 className="font-semibold">
-                        {ad.title || "Untitled Ad"}
-                      </h3>
-                      <p className="text-sm text-muted-foreground">
-                        Order: {ad.order_index} •{" "}
-                        {ad.link ? "Has link" : "No link"}
-                      </p>
+                    <div className="flex gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => editAd(ad)}
+                      >
+                        <Edit className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => deleteAd(ad.id)}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => editAd(ad)}
-                    >
-                      <Edit className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => deleteAd(ad.id, ad.image_url)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            )}
           </CardContent>
         </Card>
       </main>

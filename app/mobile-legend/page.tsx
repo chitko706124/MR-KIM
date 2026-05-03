@@ -1,9 +1,11 @@
+"use client";
 import { Navbar } from "@/components/ui/navbar";
 import Footer from "@/components/ui/footer";
 import MLClient from "@/components/mobile-legend/MLClient";
 import { supabase } from "@/lib/supabase";
+import { useEffect, useState } from "react";
+import Loading from "@/components/loading/Loading";
 
-export const revalidate = 300; // cache for 5 minutes
 
 
 
@@ -13,29 +15,68 @@ interface PageProps {
   };
 }
 
-export default async function MobileLegendPage({ searchParams }: PageProps) {
-  const page = Number(searchParams.page ?? 1);
-  const pageSize = 12;
+export default  function MobileLegendPage() {
+ 
+    const [accounts, setAccounts] = useState<any[]>([]);
+  const [filteredAccounts, setFilteredAccounts] = useState<any[]>([]);
+  const [selectedLevel, setSelectedLevel] = useState<string>("all");
+  const [loading, setLoading] = useState(true);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize] = useState<number>(10);
+  const [total, setTotal] = useState<number>(0);
+ useEffect(() => {
+  const fetchAccounts = async (pageNumber = 1) => {
+    setLoading(true);
+    try {
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/accounts?category=mobile_legend&page=${pageNumber}&pageSize=${pageSize}`
+      );
+      if (!response.ok) throw new Error("Failed to fetch accounts");
+      const payload = await response.json();
+      
+      setAccounts(payload.data || []);
+      
+      // Read pagination info correctly
+      if (payload.pagination) {
+        setTotal(payload.pagination.total ?? 0);
+      } else {
+        setTotal(payload.data?.length || 0);
+      }
+    } catch (error) {
+      console.error("Error fetching accounts:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  const from = (page - 1) * pageSize;
-  const to = from + pageSize - 1;
+  scrollTo(0, 0); // Scroll to top on page change
+  fetchAccounts(page);
+}, [page, pageSize]);
+  useEffect(() => {
+    if (selectedLevel === "all") {
+      setFilteredAccounts(accounts);
+    } else {
+      setFilteredAccounts(
+        accounts.filter((account) => account.collector_level === selectedLevel)
+      );
+    }
+  }, [accounts, selectedLevel]);
 
-  const { data, count, error } = await supabase
-    .from("accounts")
-    .select(
-      "id, title, price, cover_image, category, collector_level, is_sold",
-      { count: "planned" }
-    )
-    .eq("category", "mobile_legend")
-    .order("created_at", { ascending: false })
-    .range(from, to);
+  // if (error) {
+  //   return (
+  //     <div className="min-h-screen bg-background">
+  //       <Navbar />
+  //       <div className="text-center py-12">Failed to load accounts</div>
+  //       <Footer />
+  //     </div>
+  //   );
+  // }
 
-  if (error) {
+    if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navbar />
-        <div className="text-center py-12">Failed to load accounts</div>
-        <Footer />
+        <Loading />
       </div>
     );
   }
@@ -45,9 +86,10 @@ export default async function MobileLegendPage({ searchParams }: PageProps) {
       <Navbar />
       <main className="container mx-auto px-4 py-8">
         <MLClient
-          accounts={data ?? []}
-          total={count ?? 0}
+          accounts={filteredAccounts ?? []}
+          total={total ?? 0}
           page={page}
+          setPage={setPage}
           pageSize={pageSize}
         />
       </main>

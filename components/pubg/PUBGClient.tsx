@@ -30,7 +30,7 @@ interface Props {
   setPage: (page: any) => void;
 }
 
-export default function MLClient({
+export default function PUBGClient({
   accounts,
   total,
   page,
@@ -54,10 +54,10 @@ export default function MLClient({
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
         <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-          Mobile Legend Accounts
+          PUBG Accounts
         </h1>
 
-        <div className="w-full sm:w-64">
+        {/* <div className="w-full sm:w-64">
           <Select value={selectedLevel} onValueChange={setSelectedLevel}>
             <SelectTrigger>
               <SelectValue placeholder="Sort by Collector Level" />
@@ -71,7 +71,7 @@ export default function MLClient({
               ))}
             </SelectContent>
           </Select>
-        </div>
+        </div> */}
       </div>
 
       {/* Grid */}

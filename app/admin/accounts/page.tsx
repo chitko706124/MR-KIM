@@ -16,8 +16,8 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/lib/supabase";
-import { COLLECTOR_LEVELS, CATEGORIES } from "@/lib/constants";
+import { toast } from "sonner";
+import Image from "next/image";
 import {
   CreditCard as Edit,
   Trash2,
@@ -26,96 +26,419 @@ import {
   Undo,
   Upload,
   X,
+  Loader2,
 } from "lucide-react";
-import { toast } from "sonner";
-import Image from "next/image";
+
+// Define types based on backend
+interface Account {
+  id: string;
+  title: string;
+  description: string;
+  price: number;
+  skins: number;
+  collector_level: string | null;
+  images: string[];
+  category: string;
+  discount: number | null;
+  is_sold: boolean;
+  sold_at: string | null;
+  deleted_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+interface AccountFormData {
+  id: string;
+  title: string;
+  description: string;
+  price: string;
+  skins: string;
+  collector_level: string;
+  category: string;
+  discount: string;
+  images: File[]; // Store File objects, not URLs
+  existingImages: string[]; // For editing - keep existing image URLs
+}
+
+interface PaginationInfo {
+  page: number;
+  pageSize: number;
+  total: number;
+  totalPages: number;
+}
+
+interface Constants {
+  collector_levels: string[];
+  categories: Record<string, string>;
+}
+
+// Image compression configuration
+interface CompressionConfig {
+  maxWidth: number;
+  maxHeight: number;
+  quality: number; // 0 to 1
+  format: "image/webp";
+}
+
+const COMPRESSION_CONFIG: CompressionConfig = {
+  maxWidth: 1200,
+  maxHeight: 1200,
+  quality: 0.8,
+  format: "image/webp",
+};
 
 export default function AdminAccountsPage() {
   const router = useRouter();
-  const [accounts, setAccounts] = useState<any[]>([]);
+  const [accounts, setAccounts] = useState<Account[]>([]);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [categoryFilter, setCategoryFilter] = useState<
-    "all" | "mobile_legend" | "pubg"
-  >("all");
+  const [compressingImages, setCompressingImages] = useState(false);
+  const [pagination, setPagination] = useState<PaginationInfo>({
+    page: 1,
+    pageSize: 10,
+    total: 0,
+    totalPages: 1,
+  });
+  const [constants, setConstants] = useState<Constants>({
+    collector_levels: [],
+    categories: {},
+  });
 
-  const [accountForm, setAccountForm] = useState({
+  const [accountForm, setAccountForm] = useState<AccountFormData>({
     id: "",
     title: "",
     description: "",
     price: "",
-    discount: "",
-    category: "",
+    skins: "0",
     collector_level: "",
-    images: [] as string[],
+    category: "",
+    discount: "",
+    images: [],
+    existingImages: [],
   });
 
   const [isEditing, setIsEditing] = useState(false);
+  const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://127.0.0.1:8000";
 
-  // Check auth once on mount
+  // Check auth and fetch constants
   useEffect(() => {
-    const check = async () => {
-      const { data } = await supabase.auth.getSession();
-      const session = (data as any)?.session;
-      if (!session) return router.replace("/admin/login");
-    };
-    check();
-  }, [router]);
+    const initialize = async () => {
+      // Check auth
+      const token = localStorage.getItem("auth_token");
+      if (!token) {
+        router.replace("/admin/login");
+        return;
+      }
 
-  // Memoized fetch function so it can be used safely in effects
+      // Fetch constants
+      try {
+        const response = await fetch(`${API_URL}/constants`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (response.ok) {
+          const data = await response.json();
+          setConstants(data.data);
+        } else {
+          // If constants endpoint doesn't exist, use hardcoded values
+          setConstants({
+            collector_levels: [
+              "Discount Accounts",
+              "Expert collector",
+              "Renowned Collector",
+              "Exalted Collector",
+              "Mega Collector",
+              "World Collector",
+              "World Collector +",
+            ],
+            categories: {
+              mobile_legend: "Mobile Legend",
+
+              pubg: "PUBG",
+            },
+          });
+        }
+      } catch (error) {
+        // console.error("Error fetching constants:", error);
+        // Fallback to hardcoded values
+        setConstants({
+          collector_levels: [
+            "Discount Accounts",
+            "Expert collector",
+            "Renowned Collector",
+            "Exalted Collector",
+            "Mega Collector",
+            "World Collector",
+            "World Collector +",
+          ],
+          categories: {
+            mobile_legend: "Mobile Legend",
+
+            pubg: "PUBG",
+          },
+        });
+      }
+    };
+
+    initialize();
+  }, [router, API_URL]);
+
+  // const fetchData = useCallback(
+  //   async (page = 1, category: string | null = null) => {
+  //     try {
+  //       setLoading(true);
+  //       const token = localStorage.getItem("auth_token");
+  //       const url = new URL(`${API_URL}/accounts`);
+  //       url.searchParams.append("page", page.toString());
+  //       url.searchParams.append("pageSize", pagination.pageSize.toString());
+  //       if (category) url.searchParams.append("category", category);
+
+  //       const response = await fetch(url.toString(), {
+  //         headers: {
+  //           Authorization: `Bearer ${token}`,
+  //         },
+  //       });
+  //       if (!response.ok) throw new Error("Failed to fetch accounts");
+
+  //       const data = await response.json();
+
+  //       if (data.status === "success") {
+  //         setAccounts(data.data || []);
+  //         setPagination(
+  //           data.pagination || {
+  //             page,
+  //             pageSize: pagination.pageSize,
+  //             total: 0,
+  //             totalPages: 1,
+  //           },
+  //         );
+  //       } else {
+  //         throw new Error(data.message || "Failed to fetch accounts");
+  //       }
+  //     } catch (error: any) {
+  //       // console.error("Error fetching accounts:", error);
+  //       toast.error(error.message || "Error fetching accounts");
+  //     } finally {
+  //       setLoading(false);
+  //     }
+  //   },
+  //   [API_URL, pagination.pageSize],
+  // );
+
+  // useEffect(() => {
+  //   fetchData(pagination.page);
+  // }, [pagination.page, fetchData]);
+
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+
+  // Update your fetchData function to handle the category
   const fetchData = useCallback(
-    async (p = 1, category: string | null = null) => {
+    async (page = 1, category: string | null = null) => {
       try {
         setLoading(true);
-        const from = (p - 1) * pageSize;
-        const to = p * pageSize - 1;
-
-        let query = supabase
-          .from("accounts")
-          .select(
-            "id, title, price, category, collector_level, is_sold, sold_at, deleted_at", { count: "planned" }
-          )
-          .order("created_at", { ascending: false })
-          .range(from, to);
-
+        const token = localStorage.getItem("auth_token");
+        const url = new URL(`${API_URL}/accounts`);
+        url.searchParams.append("page", page.toString());
+        url.searchParams.append("pageSize", pagination.pageSize.toString());
         if (category && category !== "all") {
-          query = query.eq("category", category);
+          url.searchParams.append("category", category);
         }
 
-        const { data, count, error } = await query;
-        if (error) throw error;
+        const response = await fetch(url.toString(), {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+        if (!response.ok) throw new Error("Failed to fetch accounts");
 
-        setAccounts(data || []);
-        setTotal((count as number) || 0);
-      } catch (error) {
-        console.error("Error fetching accounts:", error);
-        toast.error("Error fetching accounts");
+        const data = await response.json();
+
+        if (data.status === "success") {
+          setAccounts(data.data || []);
+          setPagination(
+            data.pagination || {
+              page,
+              pageSize: pagination.pageSize,
+              total: 0,
+              totalPages: 1,
+            },
+          );
+        } else {
+          throw new Error(data.message || "Failed to fetch accounts");
+        }
+      } catch (error: any) {
+        // console.error("Error fetching accounts:", error);
+        toast.error(error.message || "Error fetching accounts");
       } finally {
         setLoading(false);
       }
     },
-    [pageSize]
+    [API_URL, pagination.pageSize],
   );
 
-  // Fetch when page or category changes
-  useEffect(() => {
-    fetchData(page, categoryFilter);
-  }, [page, categoryFilter, fetchData]);
+  // Add category change handler
+  const handleCategoryChange = (value: string) => {
+    setSelectedCategory(value);
+    // Reset to page 1 when category changes
+    setPagination((prev) => ({ ...prev, page: 1 }));
+    // Fetch data with new category
+    fetchData(1, value === "all" ? null : value);
+  };
 
-  // Function to calculate time remaining until permanent deletion
+  // Update useEffect to include category in dependencies
+  useEffect(() => {
+    fetchData(
+      pagination.page,
+      selectedCategory === "all" ? null : selectedCategory,
+    );
+  }, [pagination.page, selectedCategory, fetchData]);
+
+  /**
+   * Compress and convert image to WebP format
+   */
+  const compressImage = async (file: File): Promise<File> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = (event) => {
+        const img = new window.Image();
+        img.src = event.target?.result as string;
+        img.onload = () => {
+          // Calculate new dimensions while maintaining aspect ratio
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height) {
+            if (width > COMPRESSION_CONFIG.maxWidth) {
+              height = Math.round(
+                (height * COMPRESSION_CONFIG.maxWidth) / width,
+              );
+              width = COMPRESSION_CONFIG.maxWidth;
+            }
+          } else {
+            if (height > COMPRESSION_CONFIG.maxHeight) {
+              width = Math.round(
+                (width * COMPRESSION_CONFIG.maxHeight) / height,
+              );
+              height = COMPRESSION_CONFIG.maxHeight;
+            }
+          }
+
+          // Create canvas and draw image
+          const canvas = document.createElement("canvas");
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext("2d");
+          if (!ctx) {
+            reject(new Error("Could not get canvas context"));
+            return;
+          }
+
+          ctx.drawImage(img, 0, 0, width, height);
+
+          // Convert to WebP
+          canvas.toBlob(
+            (blob) => {
+              if (!blob) {
+                reject(new Error("Could not compress image"));
+                return;
+              }
+
+              // Create new file with .webp extension
+              const fileName = file.name.replace(/\.[^/.]+$/, "") + ".webp";
+              const compressedFile = new File([blob], fileName, {
+                type: "image/webp",
+                lastModified: Date.now(),
+              });
+
+              resolve(compressedFile);
+            },
+            COMPRESSION_CONFIG.format,
+            COMPRESSION_CONFIG.quality,
+          );
+        };
+        img.onerror = () => {
+          reject(new Error("Could not load image"));
+        };
+      };
+      reader.onerror = () => {
+        reject(new Error("Could not read file"));
+      };
+    });
+  };
+
+  /**
+   * Handle image upload with compression
+   */
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    setCompressingImages(true);
+
+    try {
+      // Validate files
+      const validFiles: File[] = [];
+      const invalidFiles: string[] = [];
+
+      Array.from(files).forEach((file) => {
+        // Validate file type
+        if (!file.type.startsWith("image/")) {
+          invalidFiles.push(`${file.name} is not an image`);
+          return;
+        }
+
+        // Validate file size (max 20MB for original - will be compressed)
+        if (file.size > 20 * 1024 * 1024) {
+          invalidFiles.push(`${file.name} is too large (max 20MB)`);
+          return;
+        }
+
+        validFiles.push(file);
+      });
+
+      if (invalidFiles.length > 0) {
+        toast.error(`Some files were invalid: ${invalidFiles.join(", ")}`);
+      }
+
+      if (validFiles.length > 0) {
+        // Compress each valid image
+        const compressionPromises = validFiles.map((file) =>
+          compressImage(file),
+        );
+        const compressedImages = await Promise.all(compressionPromises);
+
+        // Add compressed images to the form
+        setAccountForm((prev) => ({
+          ...prev,
+          images: [...prev.images, ...compressedImages],
+        }));
+
+        toast.success(
+          `Added ${compressedImages.length} images (compressed to WebP)`,
+        );
+      }
+    } catch (error) {
+      // console.error("Error compressing images:", error);
+      toast.error("Error compressing images");
+    } finally {
+      setCompressingImages(false);
+    }
+
+    e.target.value = "";
+  };
+
   const getTimeRemaining = (deletedAt: string) => {
     const deletedTime = new Date(deletedAt).getTime();
     const now = new Date().getTime();
-    const timeDiff = deletedTime + 24 * 60 * 60 * 1000 - now; // 24 hours in milliseconds
+    const timeDiff = deletedTime + 24 * 60 * 60 * 1000 - now;
 
     if (timeDiff <= 0) return { hoursRemaining: 0, minutesRemaining: 0 };
 
     const hoursRemaining = Math.floor(timeDiff / (60 * 60 * 1000));
     const minutesRemaining = Math.floor(
-      (timeDiff % (60 * 60 * 1000)) / (60 * 1000)
+      (timeDiff % (60 * 60 * 1000)) / (60 * 1000),
     );
 
     return { hoursRemaining, minutesRemaining };
@@ -126,36 +449,94 @@ export default function AdminAccountsPage() {
     setLoading(true);
 
     try {
-      const accountData = {
-        title: accountForm.title,
-        description: accountForm.description,
-        price: parseFloat(accountForm.price),
-        discount: accountForm.discount
-          ? parseFloat(accountForm.discount)
-          : null,
-        category: accountForm.category,
-        collector_level: accountForm.collector_level || null,
-        images: accountForm.images,
-      };
+      const token = localStorage.getItem("auth_token");
 
-      if (isEditing && accountForm.id) {
-        const { error } = await supabase
-          .from("accounts")
-          .update(accountData)
-          .eq("id", accountForm.id);
-        if (error) throw error;
-        toast.success("Account updated successfully");
-      } else {
-        const { error } = await supabase.from("accounts").insert(accountData);
-        if (error) throw error;
-        toast.success("Account created successfully");
+      // Create FormData object
+      const formData = new FormData();
+
+      // Append basic fields
+      formData.append("title", accountForm.title);
+      formData.append("description", accountForm.description);
+      formData.append("price", accountForm.price);
+      formData.append("skins", accountForm.skins);
+      formData.append("category", accountForm.category);
+
+      if (accountForm.collector_level) {
+        formData.append("collector_level", accountForm.collector_level);
       }
 
+      if (accountForm.discount) {
+        formData.append("discount", accountForm.discount);
+      }
+
+      // For updates, send remaining existing images
+      if (isEditing && accountForm.existingImages.length > 0) {
+        // Append each existing image URL to the 'images' array
+        accountForm.existingImages.forEach((imageUrl, index) => {
+          formData.append(`images[${index}]`, imageUrl);
+        });
+      }
+
+      // Append new image files as 'new_images' (already compressed to WebP)
+      accountForm.images.forEach((image, index) => {
+        formData.append(`new_images[${index}]`, image);
+      });
+
+      let response;
+      if (isEditing && accountForm.id) {
+        // Update existing account
+        response = await fetch(`${API_URL}/accounts/${accountForm.id}`, {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            // Don't set Content-Type header for FormData
+          },
+          body: formData,
+        });
+      } else {
+        // For create, we don't send 'images' field, only 'new_images'
+        const createFormData = new FormData();
+
+        // Copy all fields except images (since they'll be sent as new_images)
+        formData.forEach((value, key) => {
+          if (!key.startsWith("images[")) {
+            createFormData.append(key, value);
+          }
+        });
+
+        // Add new images as 'images' for create (not 'new_images')
+        accountForm.images.forEach((image, index) => {
+          createFormData.append(`images[${index}]`, image);
+        });
+
+        response = await fetch(`${API_URL}/accounts`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: createFormData,
+        });
+      }
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "success") {
+        const errorMsg = data.errors
+          ? Object.values(data.errors).flat().join(", ")
+          : data.message ||
+            `Failed to ${isEditing ? "update" : "create"} account`;
+        throw new Error(errorMsg);
+      }
+
+      toast.success(
+        data.message ||
+          `Account ${isEditing ? "updated" : "created"} successfully`,
+      );
       resetAccountForm();
-      fetchData();
-    } catch (error) {
-      console.error("Error saving account:", error);
-      toast.error("Error saving account");
+      fetchData(pagination.page);
+    } catch (error: any) {
+      // console.error("Error saving account:", error);
+      toast.error(error.message || "Error saving account");
     } finally {
       setLoading(false);
     }
@@ -164,193 +545,128 @@ export default function AdminAccountsPage() {
   const handleDeleteAccount = async (id: string) => {
     if (
       !confirm(
-        "Are you sure you want to mark this account for deletion? It will show as 'Sold Out' for 24 hours before being permanently deleted along with its images."
+        "Are you sure you want to mark this account for deletion? It will show as 'Sold Out' for 24 hours before being permanently deleted.",
       )
-    )
+    ) {
       return;
+    }
 
     try {
-      const { error } = await supabase
-        .from("accounts")
-        .update({
-          is_sold: true,
-          sold_at: new Date().toISOString(),
-          deleted_at: new Date().toISOString(), // Mark for deletion
-        })
-        .eq("id", id);
-
-      if (error) throw error;
-      toast.success(
-        "Account marked for deletion. It will be permanently deleted in 24 hours along with its images."
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(
+        `${API_URL}/accounts/${id}/mark-for-deletion`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+        },
       );
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting account:", error);
-      toast.error("Error marking account for deletion");
+
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Failed to mark account for deletion");
+      }
+
+      toast.success(data.message || "Account marked for deletion");
+      fetchData(pagination.page);
+    } catch (error: any) {
+      // console.error("Error deleting account:", error);
+      toast.error(error.message || "Error marking account for deletion");
     }
   };
 
-  // Function to restore an account (remove from deletion queue)
   const restoreAccount = async (id: string) => {
     try {
-      const { error } = await supabase
-        .from("accounts")
-        .update({
-          is_sold: false,
-          sold_at: null,
-          deleted_at: null, // Remove deletion mark
-        })
-        .eq("id", id);
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${API_URL}/accounts/${id}/restore`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      if (error) throw error;
-      toast.success("Account restored successfully");
-      fetchData();
-    } catch (error) {
-      console.error("Error restoring account:", error);
-      toast.error("Error restoring account");
+      const data = await response.json();
+
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Failed to restore account");
+      }
+
+      toast.success(data.message || "Account restored successfully");
+      fetchData(pagination.page);
+    } catch (error: any) {
+      // console.error("Error restoring account:", error);
+      toast.error(error.message || "Error restoring account");
     }
   };
 
-  // Function to delete account permanently immediately
-  const deleteAccountPermanently = async (id: string, images: string[]) => {
+  const deleteAccountPermanently = async (id: string) => {
     if (
       !confirm(
-        "Are you sure you want to delete this account permanently? This action cannot be undone and all images will be deleted from storage."
+        "Are you sure you want to delete this account permanently? This action cannot be undone.",
       )
-    )
+    ) {
       return;
+    }
 
     try {
-      // Delete images from storage first
-      if (images && images.length > 0) {
-        const fileNames = images
-          .map((url: string) => {
-            const urlParts = url.split("/");
-            return urlParts[urlParts.length - 1];
-          })
-          .filter(Boolean);
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${API_URL}/accounts/${id}`, {
+        method: "DELETE",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-        if (fileNames.length > 0) {
-          const { error: deleteStorageError } = await supabase.storage
-            .from("accounts-images")
-            .remove(fileNames);
+      const data = await response.json();
 
-          if (deleteStorageError) {
-            console.warn(
-              `Failed to delete some images for account ${id}:`,
-              deleteStorageError
-            );
-          } else {
-            console.log(`Deleted ${fileNames.length} images for account ${id}`);
-          }
-        }
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Failed to delete account");
       }
 
-      // Delete the account from database
-      const { error } = await supabase.from("accounts").delete().eq("id", id);
-
-      if (error) throw error;
-
-      toast.success("Account permanently deleted");
-      fetchData();
-    } catch (error) {
-      console.error("Error deleting account permanently:", error);
-      toast.error("Error deleting account");
+      toast.success(data.message || "Account permanently deleted");
+      fetchData(pagination.page);
+    } catch (error: any) {
+      // console.error("Error deleting account permanently:", error);
+      toast.error(error.message || "Error deleting account");
     }
   };
 
-  // Function to manually clean up expired accounts and their images
   const cleanupExpiredAccounts = async () => {
     try {
-      const twentyFourHoursAgo = new Date(
-        Date.now() - 24 * 60 * 60 * 1000
-      ).toISOString();
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(`${API_URL}/accounts/cleanup-expired`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-      const { data: expiredAccounts, error: fetchError } = await supabase
-        .from("accounts")
-        .select("id, images")
-        .lt("deleted_at", twentyFourHoursAgo);
+      const data = await response.json();
 
-      if (fetchError) throw fetchError;
-
-      if (!expiredAccounts || expiredAccounts.length === 0) {
-        toast.info("No expired accounts to clean up");
-        return;
+      if (!response.ok || data.status !== "success") {
+        throw new Error(data.message || "Cleanup failed");
       }
 
-      let totalImagesDeleted = 0;
-      let accountsDeleted = 0;
-
-      for (const account of expiredAccounts) {
-        try {
-          // Delete images from storage
-          if (account.images && account.images.length > 0) {
-            const fileNames = account.images
-              .map((url: string) => {
-                const urlParts = url.split("/");
-                return urlParts[urlParts.length - 1];
-              })
-              .filter(Boolean); // Remove any empty strings
-
-            if (fileNames.length > 0) {
-              const { error: deleteStorageError } = await supabase.storage
-                .from("accounts-images")
-                .remove(fileNames);
-
-              if (deleteStorageError) {
-                console.warn(
-                  `Failed to delete some images for account ${account.id}:`,
-                  deleteStorageError
-                );
-              } else {
-                totalImagesDeleted += fileNames.length;
-                console.log(
-                  `Deleted ${fileNames.length} images for account ${account.id}`
-                );
-              }
-            }
-          }
-
-          // Delete the account from database
-          const { error: deleteAccountError } = await supabase
-            .from("accounts")
-            .delete()
-            .eq("id", account.id);
-
-          if (deleteAccountError) {
-            console.error(
-              `Failed to delete account ${account.id}:`,
-              deleteAccountError
-            );
-          } else {
-            accountsDeleted++;
-          }
-        } catch (accountError) {
-          console.error(
-            `Error processing account ${account.id}:`,
-            accountError
-          );
-          // Continue with next account even if this one fails
-        }
-      }
-
-      if (accountsDeleted > 0) {
+      if (data.data?.accounts_deleted > 0) {
         toast.success(
-          `Cleaned up ${accountsDeleted} accounts and ${totalImagesDeleted} images`
+          `Cleaned up ${data.data.accounts_deleted} accounts and ${data.data.images_deleted} images`,
         );
       } else {
-        toast.info("No accounts were deleted during cleanup");
+        toast.info("No expired accounts to clean up");
       }
 
-      fetchData();
-    } catch (error) {
-      console.error("Cleanup error:", error);
-      toast.error("Error cleaning up expired accounts");
+      fetchData(pagination.page);
+    } catch (error: any) {
+      // console.error("Cleanup error:", error);
+      toast.error(error.message || "Error cleaning up expired accounts");
     }
   };
 
-  const editAccount = (account: any) => {
-    // Don't allow editing if account is marked for deletion
+  const editAccount = (account: Account) => {
     if (account.deleted_at) {
       toast.error("Cannot edit an account that is marked for deletion");
       return;
@@ -361,10 +677,12 @@ export default function AdminAccountsPage() {
       title: account.title,
       description: account.description,
       price: account.price.toString(),
-      discount: account.discount?.toString() || "",
-      category: account.category,
+      skins: account.skins.toString(),
       collector_level: account.collector_level || "",
-      images: account.images,
+      category: account.category || "mobile_legend",
+      discount: account.discount ? account.discount.toString() : "",
+      images: [], // New files will go here
+      existingImages: account.images || [], // Existing URLs stay here
     });
     setIsEditing(true);
   };
@@ -375,146 +693,130 @@ export default function AdminAccountsPage() {
       title: "",
       description: "",
       price: "",
-      discount: "",
-      category: "",
+      skins: "0",
       collector_level: "",
+      category: "",
+      discount: "",
       images: [],
+      existingImages: [],
     });
     setIsEditing(false);
   };
 
-  // Updated handleImageUpload to handle multiple files
-  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-
-    setUploading(true);
-
-    try {
-      const uploadPromises = Array.from(files).map(async (file) => {
-        // Validate file type
-        if (!file.type.startsWith("image/")) {
-          throw new Error(`File ${file.name} is not an image`);
-        }
-
-        // Validate file size (max 5MB)
-        if (file.size > 5 * 1024 * 1024) {
-          throw new Error(`File ${file.name} is too large (max 5MB)`);
-        }
-
-        const fileExt = file.name.split(".").pop();
-        const fileName = `${Date.now()}-${Math.random()
-          .toString(36)
-          .slice(2)}.${fileExt}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from("accounts-images")
-          .upload(fileName, file);
-
-        if (uploadError) throw uploadError;
-
-        const { data } = supabase.storage
-          .from("accounts-images")
-          .getPublicUrl(fileName);
-
-        return data.publicUrl;
-      });
-
-      const uploadedUrls = await Promise.all(uploadPromises);
-
-      // Add all new images to the form
+  const removeImage = (index: number, isExisting: boolean = false) => {
+    if (isExisting) {
+      // Remove from existing images (for editing)
+      const newExistingImages = [...accountForm.existingImages];
+      newExistingImages.splice(index, 1);
       setAccountForm((prev) => ({
         ...prev,
-        images: [...prev.images, ...uploadedUrls],
+        existingImages: newExistingImages,
       }));
-
-      toast.success(`Successfully uploaded ${uploadedUrls.length} images`);
-
-      // Clear the file input
-      e.target.value = "";
-    } catch (error: any) {
-      console.error("Upload error:", error);
-      toast.error(error.message || "Image upload failed");
-    } finally {
-      setUploading(false);
+    } else {
+      // Remove from new images
+      const newImages = [...accountForm.images];
+      newImages.splice(index, 1);
+      setAccountForm((prev) => ({ ...prev, images: newImages }));
     }
   };
 
-  // Function to remove an image from the form
-  const removeImage = (index: number) => {
-    const newImages = [...accountForm.images];
-    newImages.splice(index, 1);
-    setAccountForm((prev) => ({ ...prev, images: newImages }));
-  };
-
-  // Function to replace an image
   const replaceImage = async (
     index: number,
-    e: React.ChangeEvent<HTMLInputElement>
+    isExisting: boolean,
+    e: React.ChangeEvent<HTMLInputElement>,
   ) => {
     const files = e.target.files;
     if (!files || files.length === 0) return;
 
-    setUploading(true);
+    const file = files[0];
+
+    if (!file.type.startsWith("image/")) {
+      toast.error("Please select an image file");
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("Original image size must be less than 20MB");
+      return;
+    }
+
+    setCompressingImages(true);
 
     try {
-      const file = files[0];
+      // Compress the replacement image
+      const compressedImage = await compressImage(file);
 
-      // Validate file type and size
-      if (!file.type.startsWith("image/")) {
-        toast.error("Please select an image file");
-        return;
+      if (isExisting) {
+        // For existing images, remove the old one and add the new compressed file
+        const newExistingImages = [...accountForm.existingImages];
+        newExistingImages.splice(index, 1);
+
+        setAccountForm((prev) => ({
+          ...prev,
+          existingImages: newExistingImages,
+          images: [...prev.images, compressedImage],
+        }));
+      } else {
+        // For new images, replace at the same index
+        const newImages = [...accountForm.images];
+        newImages[index] = compressedImage;
+        setAccountForm((prev) => ({ ...prev, images: newImages }));
       }
 
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error("Image size must be less than 5MB");
-        return;
-      }
-
-      const fileExt = file.name.split(".").pop();
-      const fileName = `${Date.now()}-${Math.random()
-        .toString(36)
-        .slice(2)}.${fileExt}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("accounts-images")
-        .upload(fileName, file);
-
-      if (uploadError) throw uploadError;
-
-      const { data } = supabase.storage
-        .from("accounts-images")
-        .getPublicUrl(fileName);
-
-      const newImages = [...accountForm.images];
-      newImages[index] = data.publicUrl;
-      setAccountForm((prev) => ({ ...prev, images: newImages }));
-
-      toast.success("Image replaced successfully");
-
-      // Clear the file input
-      e.target.value = "";
+      toast.success("Image replaced and compressed successfully");
     } catch (error) {
-      console.error("Replace image error:", error);
-      toast.error("Failed to replace image");
+      // console.error("Error compressing replacement image:", error);
+      toast.error("Error compressing image");
     } finally {
-      setUploading(false);
+      setCompressingImages(false);
     }
+
+    e.target.value = "";
   };
 
-  // Pagination helpers
-  const totalPages = Math.max(1, Math.ceil(total / pageSize));
-
-  const goToPage = (p: number) => {
-    if (p < 1 || p > totalPages) return;
-    setPage(p);
-    fetchData(p, categoryFilter);
+  const goToPage = (page: number) => {
+    if (page < 1 || page > pagination.totalPages) return;
+    setPagination((prev) => ({ ...prev, page }));
+    fetchData(page);
   };
 
-  const handleCategoryChange = (cat: typeof categoryFilter) => {
-    setCategoryFilter(cat);
-    setPage(1);
-    fetchData(1, cat);
+  const handlePageSizeChange = (value: string) => {
+    const newPageSize = parseInt(value, 10);
+    setPagination((prev) => ({
+      ...prev,
+      pageSize: newPageSize,
+      page: 1, // Reset to first page
+    }));
+  };
+
+  // Helper function to get image URL for preview
+  const getImageUrl = (image: File | string): string => {
+    if (typeof image === "string") {
+      return image;
+    }
+    // For File objects, create object URL for preview
+    return URL.createObjectURL(image);
+  };
+
+  // Clean up object URLs when component unmounts
+  useEffect(() => {
+    return () => {
+      // Clean up any object URLs we created
+      accountForm.images.forEach((image) => {
+        if (image instanceof File) {
+          URL.revokeObjectURL(URL.createObjectURL(image));
+        }
+      });
+    };
+  }, [accountForm.images]);
+
+  // Format file size for display
+  const formatFileSize = (bytes: number): string => {
+    if (bytes === 0) return "0 Bytes";
+    const k = 1024;
+    const sizes = ["Bytes", "KB", "MB", "GB"];
+    const i = Math.floor(Math.log(bytes) / Math.log(k));
+    return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
   return (
@@ -543,7 +845,7 @@ export default function AdminAccountsPage() {
             <form onSubmit={handleAccountSubmit} className="space-y-4">
               <div className="grid md:grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="title">Title</Label>
+                  <Label htmlFor="title">Title *</Label>
                   <Input
                     id="title"
                     value={accountForm.title}
@@ -556,29 +858,37 @@ export default function AdminAccountsPage() {
                     required
                   />
                 </div>
+
                 <div>
-                  <Label htmlFor="category">Category</Label>
+                  <Label htmlFor="category">Category *</Label>
                   <Select
                     value={accountForm.category}
-                    onValueChange={(v) =>
-                      setAccountForm((prev) => ({ ...prev, category: v }))
+                    onValueChange={(value) =>
+                      setAccountForm((prev) => ({
+                        ...prev,
+                        category: value,
+                      }))
                     }
+                    required
                   >
                     <SelectTrigger>
                       <SelectValue placeholder="Select category" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="mobile_legend">
-                        Mobile Legend
-                      </SelectItem>
-                      <SelectItem value="pubg">PUBG</SelectItem>
+                      {Object.entries(constants.categories).map(
+                        ([key, value]) => (
+                          <SelectItem key={key} value={key}>
+                            {value}
+                          </SelectItem>
+                        ),
+                      )}
                     </SelectContent>
                   </Select>
                 </div>
               </div>
 
               <div>
-                <Label htmlFor="description">Description</Label>
+                <Label htmlFor="description">Description *</Label>
                 <Textarea
                   id="description"
                   value={accountForm.description}
@@ -592,13 +902,14 @@ export default function AdminAccountsPage() {
                 />
               </div>
 
-              <div className="grid md:grid-cols-3 gap-4">
+              <div className="grid md:grid-cols-4 gap-4">
                 <div>
-                  <Label htmlFor="price">Price ($)</Label>
+                  <Label htmlFor="price">Price (MMK) *</Label>
                   <Input
                     id="price"
                     type="number"
                     step="0.01"
+                    min="0"
                     value={accountForm.price}
                     onChange={(e) =>
                       setAccountForm((prev) => ({
@@ -610,58 +921,55 @@ export default function AdminAccountsPage() {
                   />
                 </div>
                 <div>
-                  {/* <Label htmlFor="discount">Discount (%)</Label> */}
                   <Input
-                    id="discount"
+                    id="skins"
                     type="hidden"
-                    max="100"
-                    value={accountForm.discount}
+                    required
+                    min="0"
+                    value={accountForm.skins}
                     onChange={(e) =>
                       setAccountForm((prev) => ({
                         ...prev,
-                        discount: e.target.value,
+                        skins: e.target.value,
                       }))
                     }
                   />
                 </div>
-                {accountForm.category === "mobile_legend" && (
-                  <div>
-                    <Label htmlFor="collector_level">Collector Level</Label>
-                    <Select
-                      value={accountForm.collector_level}
-                      onValueChange={(v) =>
-                        setAccountForm((prev) => ({
-                          ...prev,
-                          collector_level: v,
-                        }))
-                      }
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select level" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {COLLECTOR_LEVELS.map((l) => (
-                          <SelectItem key={l} value={l}>
-                            {l}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                )}
+                <div>
+                  <Label htmlFor="collector_level">Collector Level</Label>
+                  <Select
+                    value={accountForm.collector_level}
+                    onValueChange={(value) =>
+                      setAccountForm((prev) => ({
+                        ...prev,
+                        collector_level: value,
+                      }))
+                    }
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select level" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {constants.collector_levels.map((level) => (
+                        <SelectItem key={level} value={level}>
+                          {level}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               <div>
                 <Label>Images</Label>
                 <div className="space-y-4">
-                  {/* Multiple Image Upload */}
                   <div className="border-2 border-dashed border-muted-foreground/25 rounded-lg p-6 text-center">
                     <Input
                       type="file"
                       accept="image/*"
                       multiple
                       onChange={handleImageUpload}
-                      disabled={uploading}
+                      disabled={uploading || compressingImages}
                       className="hidden"
                       id="image-upload"
                     />
@@ -669,77 +977,156 @@ export default function AdminAccountsPage() {
                       htmlFor="image-upload"
                       className="cursor-pointer flex flex-col items-center gap-2"
                     >
-                      <Upload className="h-8 w-8 text-muted-foreground" />
+                      {compressingImages ? (
+                        <Loader2 className="h-8 w-8 text-muted-foreground animate-spin" />
+                      ) : (
+                        <Upload className="h-8 w-8 text-muted-foreground" />
+                      )}
                       <div>
                         <p className="font-medium">
-                          {uploading
-                            ? "Uploading..."
-                            : "Click to upload multiple images"}
+                          {compressingImages
+                            ? "Compressing images..."
+                            : uploading
+                              ? "Uploading..."
+                              : "Click to upload multiple images"}
                         </p>
                         <p className="text-sm text-muted-foreground">
-                          Select multiple images at once (max 5MB each)
+                          Images will be compressed and converted to WebP format
+                          (max 1200px, ~80% quality)
                         </p>
                       </div>
                     </Label>
                   </div>
 
-                  {/* Image Preview Grid */}
-                  {accountForm.images.length > 0 && (
+                  {/* Show existing images (for editing) */}
+                  {isEditing && accountForm.existingImages.length > 0 && (
                     <div>
                       <Label className="text-sm font-medium">
-                        Uploaded Images ({accountForm.images.length})
+                        Existing Images ({accountForm.existingImages.length})
                       </Label>
                       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
-                        {accountForm.images.map((img, idx) => (
-                          <div key={idx} className="relative group">
+                        {accountForm.existingImages.map((img, idx) => (
+                          <div
+                            key={`existing-${idx}`}
+                            className="relative group"
+                          >
                             <div className="aspect-square rounded-lg overflow-hidden border">
                               <Image
                                 src={img}
-                                alt={`Preview ${idx + 1}`}
+                                alt={`Existing ${idx + 1}`}
                                 width={150}
                                 height={150}
-                                 
-  unoptimized
-  loading="lazy"
                                 className="w-full h-full object-cover"
                               />
                             </div>
                             <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                              {/* Replace button */}
                               <label className="cursor-pointer">
                                 <Input
                                   type="file"
                                   accept="image/*"
-                                  onChange={(e) => replaceImage(idx, e)}
-                                  disabled={uploading}
+                                  onChange={(e) => replaceImage(idx, true, e)}
+                                  disabled={uploading || compressingImages}
                                   className="hidden"
-                                  id={`replace-${idx}`}
+                                  id={`replace-existing-${idx}`}
                                 />
                                 <Button
                                   type="button"
                                   size="icon"
                                   variant="secondary"
                                   className="h-6 w-6 bg-blue-500 hover:bg-blue-600 text-white"
+                                  disabled={compressingImages}
                                   asChild
                                 >
                                   <span>
-                                    <Upload className="h-3 w-3" />
+                                    {compressingImages ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Upload className="h-3 w-3" />
+                                    )}
                                   </span>
                                 </Button>
                               </label>
-                              {/* Remove button */}
                               <Button
                                 type="button"
                                 size="icon"
                                 variant="destructive"
                                 className="h-6 w-6"
-                                onClick={() => removeImage(idx)}
+                                onClick={() => removeImage(idx, true)}
                               >
                                 <X className="h-3 w-3" />
                               </Button>
                             </div>
                             <div className="text-xs text-center mt-1 text-muted-foreground">
-                              Image {idx + 1}
+                              Existing {idx + 1}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Show new images to upload */}
+                  {accountForm.images.length > 0 && (
+                    <div>
+                      <Label className="text-sm font-medium">
+                        New Images to Upload ({accountForm.images.length})
+                      </Label>
+                      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 mt-2">
+                        {accountForm.images.map((img, idx) => (
+                          <div key={`new-${idx}`} className="relative group">
+                            <div className="aspect-square rounded-lg overflow-hidden border">
+                              <Image
+                                src={getImageUrl(img)}
+                                alt={`New ${idx + 1}`}
+                                width={150}
+                                height={150}
+                                className="w-full h-full object-cover"
+                              />
+                            </div>
+                            <div className="absolute top-0 left-0 bg-green-500 text-white text-xs px-1 py-0.5 rounded-br-lg">
+                              WebP
+                            </div>
+                            <div className="absolute top-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <label className="cursor-pointer">
+                                <Input
+                                  type="file"
+                                  accept="image/*"
+                                  onChange={(e) => replaceImage(idx, false, e)}
+                                  disabled={uploading || compressingImages}
+                                  className="hidden"
+                                  id={`replace-new-${idx}`}
+                                />
+                                <Button
+                                  type="button"
+                                  size="icon"
+                                  variant="secondary"
+                                  className="h-6 w-6 bg-blue-500 hover:bg-blue-600 text-white"
+                                  disabled={compressingImages}
+                                  asChild
+                                >
+                                  <span>
+                                    {compressingImages ? (
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <Upload className="h-3 w-3" />
+                                    )}
+                                  </span>
+                                </Button>
+                              </label>
+                              <Button
+                                type="button"
+                                size="icon"
+                                variant="destructive"
+                                className="h-6 w-6"
+                                onClick={() => removeImage(idx, false)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </div>
+                            <div className="text-xs text-center mt-1 text-muted-foreground">
+                              {img instanceof File && (
+                                <span>{formatFileSize(img.size)}</span>
+                              )}
                             </div>
                           </div>
                         ))}
@@ -750,8 +1137,16 @@ export default function AdminAccountsPage() {
               </div>
 
               <div className="flex gap-2">
-                <Button type="submit" disabled={loading || uploading}>
-                  <Save className="mr-2 h-4 w-4" />
+                <Button
+                  type="submit"
+                  variant={"outline"}
+                  disabled={loading || uploading || compressingImages}
+                >
+                  {loading ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="mr-2 h-4 w-4" />
+                  )}
                   {isEditing ? "Update" : "Create"}
                 </Button>
                 {isEditing && (
@@ -771,38 +1166,46 @@ export default function AdminAccountsPage() {
         <Card className="mt-6">
           <CardHeader>
             <div className="flex items-center justify-between w-full">
-              <div className="flex items-center gap-2">
-                <Select
-                  value={categoryFilter}
-                  onValueChange={(v) =>
-                    handleCategoryChange(v as typeof categoryFilter)
-                  }
-                >
-                  <SelectTrigger className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All</SelectItem>
-                    <SelectItem value="mobile_legend">Mobile Legend</SelectItem>
-                    <SelectItem value="pubg">PUBG</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={String(pageSize)}
-                  onValueChange={(v) => {
-                    setPageSize(parseInt(v, 10));
-                    setPage(1);
-                  }}
-                >
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="5">5</SelectItem>
-                    <SelectItem value="10">10</SelectItem>
-                    <SelectItem value="20">20</SelectItem>
-                  </SelectContent>
-                </Select>
+              <div className="flex items-center gap-4">
+                {/* Page Size Select */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Show:</span>
+                  <Select
+                    value={String(pagination.pageSize)}
+                    onValueChange={handlePageSizeChange}
+                  >
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="5">5</SelectItem>
+                      <SelectItem value="10">10</SelectItem>
+                      <SelectItem value="20">20</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {/* Category Filter */}
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">
+                    Category:
+                  </span>
+                  <Select
+                    value={selectedCategory}
+                    onValueChange={handleCategoryChange}
+                  >
+                    <SelectTrigger className="w-40">
+                      <SelectValue placeholder="All Categories" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Categories</SelectItem>
+                      <SelectItem value="mobile_legend">
+                        Mobile Legend
+                      </SelectItem>
+                      <SelectItem value="pubg">PUBG</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
             </div>
           </CardHeader>
@@ -818,9 +1221,9 @@ export default function AdminAccountsPage() {
                 </p>
               ) : (
                 accounts.map((account) => {
-                  const isMarkedForDeletion = account.deleted_at;
+                  const isMarkedForDeletion = account.sold_at;
                   const timeRemaining = isMarkedForDeletion
-                    ? getTimeRemaining(account.deleted_at)
+                    ? getTimeRemaining(account.sold_at!)
                     : null;
 
                   return (
@@ -828,8 +1231,10 @@ export default function AdminAccountsPage() {
                       key={account.id}
                       className={`flex items-center justify-between p-4 border rounded-lg ${
                         isMarkedForDeletion
-                          ? "bg-amber-50 border-amber-200"
-                          : "hover:bg-muted/50"
+                          ? "bg-amber-50 border-amber-200 text-black"
+                          : account.is_sold
+                            ? "bg-gray-50 border-gray-200"
+                            : "hover:bg-muted/50"
                       }`}
                     >
                       <div className="flex-1">
@@ -852,20 +1257,22 @@ export default function AdminAccountsPage() {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          {
-                            CATEGORIES[
-                              account.category as keyof typeof CATEGORIES
-                            ]
-                          }{" "}
-                          • ${account.price}
-                        
+                          {Math.floor(account.price).toLocaleString()} MMK
+                          {account.discount && ` • ${account.discount}% off`}
+                          {account.skins > 0 && ` • ${account.skins} skins`}
                         </p>
-                        {account.collector_level && (
-                          <Badge variant="outline" className="text-xs mt-1">
-                            {account.collector_level}
+                        {account.category && (
+                          <Badge
+                            variant="outline"
+                            className="text-xs dark:text-black mt-1"
+                          >
+                            {account.category === "mobile_legend"
+                              ? "Mobile Legend"
+                              : account.category === "pubg"
+                                ? "PUBG"
+                                : account.category}
                           </Badge>
                         )}
-                
                       </div>
                       <div className="flex gap-2">
                         {!isMarkedForDeletion ? (
@@ -886,19 +1293,16 @@ export default function AdminAccountsPage() {
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>
-                            {/* Delete Now button - permanently deletes immediately */}
                             <Button
-                              variant="destructive"
+                              variant="outline"
                               size="sm"
                               onClick={() =>
-                                deleteAccountPermanently(
-                                  account.id,
-                                  account.images
-                                )
+                                deleteAccountPermanently(account.id)
                               }
+                              disabled={account.is_sold}
                             >
                               <Trash2 className="h-4 w-4" />
-                              Delete
+                              Delete Now
                             </Button>
                           </>
                         ) : (
@@ -906,7 +1310,7 @@ export default function AdminAccountsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => restoreAccount(account.id)}
-                            className="flex items-center gap-1"
+                            className="flex dark:text-black items-center gap-1"
                           >
                             <Undo className="h-3 w-3" />
                             Restore
@@ -917,24 +1321,23 @@ export default function AdminAccountsPage() {
                   );
                 })
               )}
-              {/* Pagination controls */}
               <div className="flex items-center justify-between mt-4">
                 <div>
-                  Page {page} of {totalPages}
+                  Page {pagination.page} of {pagination.totalPages}
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => goToPage(page - 1)}
-                    disabled={page <= 1}
+                    onClick={() => goToPage(pagination.page - 1)}
+                    disabled={pagination.page <= 1}
                   >
                     Prev
                   </Button>
-                  {Array.from({ length: totalPages }).map((_, i) => (
+                  {Array.from({ length: pagination.totalPages }).map((_, i) => (
                     <Button
                       key={i}
-                      variant={i + 1 === page ? undefined : "ghost"}
+                      variant={i + 1 === pagination.page ? undefined : "ghost"}
                       size="sm"
                       onClick={() => goToPage(i + 1)}
                     >
@@ -944,8 +1347,8 @@ export default function AdminAccountsPage() {
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => goToPage(page + 1)}
-                    disabled={page >= totalPages}
+                    onClick={() => goToPage(pagination.page + 1)}
+                    disabled={pagination.page >= pagination.totalPages}
                   >
                     Next
                   </Button>

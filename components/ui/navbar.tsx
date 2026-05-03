@@ -45,37 +45,78 @@ export function Navbar() {
     { href: "tg://resolve?domain=kim_mlbb_diamond_shop", label: "Support" },
   ];
 
+  // useEffect(() => {
+  //   const checkAuth = async () => {
+  //     try {
+  //       // const response = await fetch("/api/admin/session");
+  //       // if (!response.ok) {
+  //       //   setIsAdmin(false);
+  //       //   return;
+  //       // }
+  //       // const payload = await response.json();
+  //       // setIsAdmin(payload.ok);
+  //       if (localStorage.getItem('auth_token')) {
+  //         setIsAdmin(true);
+  //         return;
+  //       }
+  //       // const token = localStorage.getItem('auth_token');
+  //       // setIsAdmin(!!token);
+  //       // setIsAdmin(!!token);
+
+  //     } catch (err) {
+  //       console.error("Auth check error", err);
+  //       setIsAdmin(false);
+  //     }
+  //   };
+
+  //   checkAuth();
+  // }, []);
+
+  // Add the handleSignOut function here
+
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const {
-          data: { session },
-        } = await supabase.auth.getSession();
-        setIsAdmin(!!session);
+        const response = await fetch(
+          `${process.env.NEXT_PUBLIC_API_URL}/check-auth`,
+          {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+            },
+          },
+        );
+
+        const authData = await response.json();
+
+        if (authData.authenticated) {
+          setIsAdmin(true);
+          return;
+        }
       } catch (err) {
-        console.error("Auth check error", err);
+        // console.error("Auth check error", err);
         setIsAdmin(false);
       }
     };
 
     checkAuth();
-
-    // Listen for auth state changes
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsAdmin(!!session);
-    });
-
-    return () => subscription.unsubscribe();
   }, []);
 
-  // Add the handleSignOut function here
   const handleSignOut = async () => {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) throw error;
+      const token = localStorage.getItem("auth_token");
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/logout`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Failed to sign out");
 
+      localStorage.removeItem("auth_token");
       setIsAdmin(false);
       router.push("/");
       router.refresh(); // Refresh the page to update the state
@@ -85,6 +126,30 @@ export function Navbar() {
   };
 
   // Search function - fixed with proper typing
+  // const handleSearch = useCallback(async (query: string) => {
+  //   if (!query.trim()) {
+  //     setSearchResults(EMPTY_ARRAY);
+  //     return;
+  //   }
+
+  //   setIsSearching(true);
+  //   try {
+  //     const response = await fetch(
+  //       `${process.env.NEXT_PUBLIC_API_URL}/accounts?q=${encodeURIComponent(
+  //         query
+  //       )}&limit=8&includeSold=false`
+  //     );
+  //     if (!response.ok) throw new Error("Search failed");
+  //     const payload = await response.json();
+  //     setSearchResults(payload.data || EMPTY_ARRAY);
+  //   } catch (error) {
+  //     console.error("Search error:", error);
+  //     setSearchResults(EMPTY_ARRAY);
+  //   } finally {
+  //     setIsSearching(false);
+  //   }
+  // }, []);
+
   const handleSearch = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSearchResults(EMPTY_ARRAY);
@@ -93,18 +158,19 @@ export function Navbar() {
 
     setIsSearching(true);
     try {
-      const { data, error } = await supabase
-        .from("accounts")
-        .select("id, title, price, images, category, is_sold")
-        .ilike("title", `%${query}%`)
-        .eq("is_sold", false)
-        .limit(8);
+      const response = await fetch(
+        `${process.env.NEXT_PUBLIC_API_URL}/accounts?q=${encodeURIComponent(
+          query,
+        )}&limit=8&includeSold=false`,
+      );
+      if (!response.ok) throw new Error("Search failed");
+      const data = await response.json();
 
-      if (error) throw error;
-
-      // Use nullish coalescing with the constant
-      const results = data ?? EMPTY_ARRAY;
-      setSearchResults(results);
+      if (data.status === "success") {
+        setSearchResults(data.data || EMPTY_ARRAY);
+      } else {
+        throw new Error(data.message || "Search failed");
+      }
     } catch (error) {
       console.error("Search error:", error);
       setSearchResults(EMPTY_ARRAY);
@@ -128,9 +194,9 @@ export function Navbar() {
       setSearchQuery("");
       setSearchResults(EMPTY_ARRAY);
       setIsOpen(false);
-      router.push(`/offers/${accountId}`);
+      router.push(`/offers?id=${accountId}`);
     },
-    [router]
+    [router],
   );
 
   const handleViewAllResults = useCallback(() => {
@@ -152,7 +218,7 @@ export function Navbar() {
         router.push(`/search?q=${encodeURIComponent(searchQuery)}`);
       }
     },
-    [searchQuery, router]
+    [searchQuery, router],
   );
 
   return (
@@ -168,8 +234,7 @@ export function Navbar() {
               height={40}
               className="h-8 w-8 object-contain"
               priority
-              
-  unoptimized
+              unoptimized
             />
             <span className="text-xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
               MR.KIM
@@ -207,7 +272,7 @@ export function Navbar() {
                 >
                   Profile
                 </Link>
-                <Button
+                {/* <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleSignOut}
@@ -215,7 +280,7 @@ export function Navbar() {
                 >
                   <LogOut className="h-4 w-4 mr-2" />
                   Sign Out
-                </Button>
+                </Button> */}
               </>
             )}
           </div>
@@ -276,9 +341,9 @@ export function Navbar() {
                                       <Image
                                         src={account.images[0]}
                                         alt={account.title}
-                                       fill
-  unoptimized
-  loading="lazy"
+                                        fill
+                                        unoptimized
+                                        loading="lazy"
                                         className="object-cover"
                                       />
                                     </div>
@@ -374,8 +439,6 @@ export function Navbar() {
                 </SheetTrigger>
                 <SheetContent side="right" className="w-80">
                   <div className="flex flex-col space-y-6 mt-8">
-                   
-
                     {/* Navigation Links */}
                     <div className="space-y-4">
                       {navLinks.map((link) => (

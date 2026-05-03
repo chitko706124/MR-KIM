@@ -6,45 +6,54 @@ import { AccountCard } from "@/components/ui/account-card";
 import { supabase } from "@/lib/supabase";
 import Footer from "@/components/ui/footer";
 import Loading from "@/components/loading/Loading";
+import MLClient from "@/components/mobile-legend/MLClient";
+import PUBGClient from "@/components/pubg/PUBGClient";
 
 export default function PubgPage() {
-  const [accounts, setAccounts] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [page, setPage] = useState<number>(1);
-  const [pageSize] = useState<number>(12);
-  const [total, setTotal] = useState<number>(0);
-
-
-
-const fetchAccounts = useCallback(async (pageNumber = 1) => {
-  setLoading(true);
-  try {
-    const from = (pageNumber - 1) * pageSize;
-    const to = from + pageSize - 1;
-
-    const { data, error, count } = await supabase
-      .from("accounts")
-      .select(
-        "id, title, price, cover_image, category, is_sold",
-        { count: "exact" }  // Changed from "planned" to "exact"
-      )
-      .eq("category", "pubg")
-      .order("created_at", { ascending: false })
-      .range(from, to);
-
-    if (error) throw error;
-    setAccounts(data || []);
-    setTotal(count ?? 0);
-  } catch (error) {
-    console.error("Error fetching accounts:", error);
-  } finally {
-    setLoading(false);
-  }
-}, [pageSize]); // Add dependencies that fetchAccounts uses
-
-useEffect(() => {
-  fetchAccounts();
-}, [fetchAccounts]); // Now fetchAccounts is stable
+   const [accounts, setAccounts] = useState<any[]>([]);
+   const [filteredAccounts, setFilteredAccounts] = useState<any[]>([]);
+   const [selectedLevel, setSelectedLevel] = useState<string>("all");
+   const [loading, setLoading] = useState(true);
+   const [page, setPage] = useState<number>(1);
+   const [pageSize] = useState<number>(10);
+   const [total, setTotal] = useState<number>(0);
+  useEffect(() => {
+   const fetchAccounts = async (pageNumber = 1) => {
+     setLoading(true);
+     try {
+       const response = await fetch(
+         `${process.env.NEXT_PUBLIC_API_URL}/accounts?category=pubg&page=${pageNumber}&pageSize=${pageSize}`
+       );
+       if (!response.ok) throw new Error("Failed to fetch accounts");
+       const payload = await response.json();
+       
+       setAccounts(payload.data || []);
+       
+       // Read pagination info correctly
+       if (payload.pagination) {
+         setTotal(payload.pagination.total ?? 0);
+       } else {
+         setTotal(payload.data?.length || 0);
+       }
+     } catch (error) {
+       console.error("Error fetching accounts:", error);
+     } finally {
+       setLoading(false);
+     }
+   };
+ 
+   scrollTo(0, 0); // Scroll to top on page change
+   fetchAccounts(page);
+ }, [page, pageSize]);
+   useEffect(() => {
+     if (selectedLevel === "all") {
+       setFilteredAccounts(accounts);
+     } else {
+       setFilteredAccounts(
+         accounts.filter((account) => account.collector_level === selectedLevel)
+       );
+     }
+   }, [accounts, selectedLevel]);
 
   if (loading) {
     return (
@@ -58,76 +67,21 @@ useEffect(() => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-
       <main className="container mx-auto px-4 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent">
-            PUBG Accounts
-          </h1>
-        </div>
-
-        <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {accounts.map((account) => (
-            <AccountCard
-              key={account.id}
-              id={account.id}
-              title={account.title}
-              price={account.price}
-              cover_image={account.cover_image}
-              category={account.category}              
-              isSold={account.is_sold}
-            />
-          ))}
-        </div>
-
-        {/* Pagination Controls */}
-        <div className="flex items-center justify-center gap-3 mt-8">
-          <button
-            className="px-3 py-1 rounded border"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-          >
-            Prev
-          </button>
-
-          {/* page numbers */}
-          {Array.from({ length: Math.max(1, Math.ceil(total / pageSize)) }).map(
-            (_, i) => {
-              const pageNum = i + 1;
-              return (
-                <button
-                  key={pageNum}
-                  className={`px-3 py-1 rounded border ${
-                    pageNum === page
-                      ? "bg-primary dark:text-black text-white"
-                      : ""
-                  }`}
-                  onClick={() => setPage(pageNum)}
-                >
-                  {pageNum}
-                </button>
-              );
-            }
-          )}
-
-          <button
-            className="px-3 py-1 rounded border"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= Math.ceil(total / pageSize)}
-          >
-            Next
-          </button>
-        </div>
-
-        {accounts.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">
-              No PUBG accounts available at the moment
-            </p>
-          </div>
-        )}
+        {/* <MLClient
+          accounts={filteredAccounts ?? []}
+          total={total ?? 0}
+          page={page}
+          setPage={setPage}
+          pageSize={pageSize}
+        /> */}
+        <PUBGClient
+          accounts={filteredAccounts ?? []}
+          total={total ?? 0}
+          page={page}
+          setPage={setPage}
+          pageSize={pageSize}/>
       </main>
-
       <Footer />
     </div>
   );

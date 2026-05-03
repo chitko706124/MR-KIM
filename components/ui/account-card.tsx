@@ -10,7 +10,7 @@ interface AccountCardProps {
   id: string;
   title: string;
   price: number;
-  cover_image: string;
+  images: string[];
   category: string;
   collectorLevel?: string;
   isSold: boolean;
@@ -20,18 +20,19 @@ export function AccountCard({
   id,
   title,
   price,
-  cover_image,
+  // cover_image,
+  images: [thumbnailImage],
   category,
   collectorLevel,
   isSold,
 }: AccountCardProps) {
  
-  const thumbnailImage = cover_image;
+  // const thumbnailImage = cover_image;
 
   return (
     <motion.div whileHover={{ y: -4 }} transition={{ duration: 0.2 }}>
       <Card className="overflow-hidden group hover:shadow-lg transition-all duration-300 border-2 hover:border-primary/20">
-          <Link href={`/offers/${encodeURIComponent(id)}`}>
+          <Link href={`/offers?id=${id}`} >
           <div className="relative aspect-video">
             <Image
               src={thumbnailImage}
@@ -68,7 +69,7 @@ export function AccountCard({
               
               </div>
               <Link
-                href={`/offers/${id}`}
+             href={`/offers?id=${id}`}
                 className="ml-4 px-3 py-1 rounded bg-primary text-white dark:text-black text-xs font-medium hover:bg-primary/80 transition"
               >
                 View

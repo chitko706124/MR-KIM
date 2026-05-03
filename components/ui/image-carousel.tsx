@@ -108,11 +108,11 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
           <Image
             src={images[currentIndex]}
             alt={`${title} - Image ${currentIndex + 1}`}
-             fill
-  unoptimized
+            fill
             className="object-cover"
             onClick={() => openFullscreen(currentIndex)}
             priority
+            sizes="(max-width: 768px) 100vw, 80vw"
           />
 
           {/* Mobile swipe indicators */}
@@ -182,10 +182,9 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
                       <Image
                         src={image}
                         alt={`Thumbnail ${actualIndex + 1}`}
-                     
-  unoptimized
-  loading="lazy"
-                        className="object-cover"
+                        width={64}
+                        height={64}
+                        className="object-cover w-full h-full"
                         sizes={isMobile ? "64px" : "80px"}
                       />
                     </button>
@@ -248,9 +247,9 @@ export function ImageCarousel({ images, title }: ImageCarouselProps) {
                   src={images[fullscreenIndex]}
                   alt={`${title} - Fullscreen ${fullscreenIndex + 1}`}
                   fill
-  unoptimized
                   className="object-contain"
                   priority
+                  sizes="100vw"
                 />
               </motion.div>
             </AnimatePresence>
